@@ -1,8 +1,25 @@
 {
-  "name": "vite-react-starter",
+  "name": "calculadora-vtex-tco",
+  "version": "1.0.0",
+  "description": "Calculadora interactiva de ROI y TCO para migraciones a VTEX - Análisis completo de retorno de inversión, costos totales de propiedad y beneficios de migración",
+  "author": "Sebastian Balbo <sebastian.balbo@vtex.com>",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "homepage": "https://sebastianbalbo-vtex.github.io/calculadora-vtex-tco",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sebastianbalbo-vtex/calculadora-vtex-tco.git"
+  },
+  "keywords": [
+    "vtex",
+    "roi-calculator",
+    "tco-calculator",
+    "ecommerce",
+    "migration",
+    "cost-analysis",
+    "platform-migration",
+    "digital-commerce"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
