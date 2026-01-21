@@ -419,58 +419,227 @@ const MigrationROICalculator = () => {
   const toggleFeature = (f) => setSelectedFeatures(prev => ({ ...prev, [f]: !prev[f] }));
   const selectedFeatureCount = Object.values(selectedFeatures).filter(Boolean).length;
 
-  // Función para exportar PDF
+  // Función para exportar PDF profesional con justificación
   const exportToPDF = async () => {
     setIsExporting(true);
     try {
-      // Cargar librerías dinámicamente
-      const html2canvasScript = document.createElement('script');
-      html2canvasScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      document.head.appendChild(html2canvasScript);
-      
-      const jspdfScript = document.createElement('script');
-      jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      document.head.appendChild(jspdfScript);
-      
-      // Esperar a que carguen
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (window.html2canvas && window.jspdf) {
-        const element = dashboardRef.current;
-        const canvas = await window.html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#f8fafc'
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210;
-        const pageHeight = 297;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-        
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-        
-        const fileName = `Analisis_ROI_VTEX_${platformNames[currentPlatform].split(' /')[0].replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-        pdf.save(fileName);
-      } else {
-        // Fallback a window.print()
-        window.print();
+      // Cargar jsPDF
+      if (!window.jspdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        document.head.appendChild(script);
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
+      
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const margin = 15;
+      const contentWidth = pageWidth - (margin * 2);
+      let y = 15;
+      
+      // Colores
+      const blue = [30, 64, 175];
+      const green = [22, 163, 74];
+      const gray = [75, 85, 99];
+      const lightGray = [156, 163, 175];
+      
+      // Helper para texto
+      const addText = (text, x, yPos, size = 10, color = gray, style = 'normal') => {
+        doc.setFontSize(size);
+        doc.setTextColor(...color);
+        doc.setFont('helvetica', style);
+        doc.text(text, x, yPos);
+        return yPos + (size * 0.5);
+      };
+      
+      // Helper para líneas
+      const addLine = (yPos) => {
+        doc.setDrawColor(220, 220, 220);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        return yPos + 5;
+      };
+      
+      // ===== PÁGINA 1 =====
+      
+      // Header
+      doc.setFillColor(30, 64, 175);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      addText('ANÁLISIS DE ROI - MIGRACIÓN A VTEX', margin, 15, 18, [255, 255, 255], 'bold');
+      addText(`${platformNames[currentPlatform]} → VTEX | GMV: ${formatMoney(calculations.gmvUSD)} | Período: ${period} año${period > 1 ? 's' : ''}`, margin, 25, 10, [200, 210, 255]);
+      
+      y = 45;
+      
+      // Resumen Ejecutivo
+      addText('RESUMEN EJECUTIVO', margin, y, 14, blue, 'bold');
+      y += 10;
+      
+      // Métricas clave en boxes
+      const boxWidth = (contentWidth - 10) / 3;
+      const boxes = [
+        { label: 'ROI', value: `${calculations.roi}%`, color: green },
+        { label: 'Payback', value: `${calculations.paybackMonths} meses`, color: blue },
+        { label: 'Beneficio Neto', value: formatMoney(calculations.beneficioIncremental), color: green }
+      ];
+      
+      boxes.forEach((box, i) => {
+        const x = margin + (i * (boxWidth + 5));
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(x, y, boxWidth, 20, 2, 2, 'F');
+        addText(box.label, x + 5, y + 7, 8, lightGray);
+        addText(box.value, x + 5, y + 15, 12, box.color, 'bold');
+      });
+      y += 30;
+      
+      // Desglose de beneficios
+      addText('DESGLOSE DE BENEFICIOS', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      const benefits = [
+        { label: `Uplift de Revenue (Margen ${profitMargin}%)`, value: calculations.totalProfitFromUplift, pct: `+${Math.round(calculations.upliftYear1Percent * 100)}% año 1` },
+        { label: 'Ahorro en Equipo Técnico', value: calculations.teamSavings * period, pct: `${calculations.internalTeamBefore}→${calculations.internalTeamAfter} FTE` },
+        { label: 'Ahorro en TCO', value: calculations.tcoSavings, pct: `-${calculations.tcoSavingsPercent}%` },
+        { label: 'Features Nativos (vs desarrollo)', value: calculations.featureGapSavings, pct: `${selectedFeatureCount} features` },
+      ];
+      
+      benefits.forEach(b => {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(margin, y, contentWidth, 8, 'F');
+        addText(b.label, margin + 2, y + 5.5, 9, gray);
+        addText(formatMoney(b.value), margin + 120, y + 5.5, 9, green, 'bold');
+        addText(b.pct, margin + 155, y + 5.5, 8, lightGray);
+        y += 9;
+      });
+      
+      doc.setFillColor(220, 252, 231);
+      doc.rect(margin, y, contentWidth, 10, 'F');
+      addText('BENEFICIO TOTAL', margin + 2, y + 7, 10, gray, 'bold');
+      addText(formatMoney(calculations.totalBenefits), margin + 120, y + 7, 11, green, 'bold');
+      y += 18;
+      
+      // Inversión
+      addText('INVERSIÓN REQUERIDA', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText(`Setup de migración (único): ${formatMoney(calculations.inversionSetup)}`, margin + 2, y, 9, gray);
+      y += 6;
+      addText(`Suscripción VTEX (${period}a): ${formatMoney(calculations.costoOperativoAnual * period)}`, margin + 2, y, 9, gray);
+      y += 6;
+      addText(`Inversión Total: ${formatMoney(calculations.totalInvestment)}`, margin + 2, y, 10, blue, 'bold');
+      y += 12;
+      
+      y = addLine(y);
+      
+      // Justificación del Uplift
+      addText('JUSTIFICACIÓN DEL UPLIFT DE REVENUE', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText('El uplift se calcula considerando:', margin, y, 9, gray);
+      y += 6;
+      addText(`• Base por industria (${industry}): +${Math.round(calculations.baseUplift * 100)}% - Benchmark VTEX para el sector`, margin + 2, y, 8, gray);
+      y += 5;
+      addText(`• Bonus por features (${selectedFeatureCount} seleccionados): +${(calculations.featuresUpliftBonus * 100).toFixed(1)}% - Impacto acumulativo documentado`, margin + 2, y, 8, gray);
+      y += 5;
+      addText(`• Bonus omnicanal (${physicalStores} tiendas): +${(calculations.storesUpliftBonus * 100).toFixed(1)}% - Efecto de integración física-digital`, margin + 2, y, 8, gray);
+      y += 5;
+      addText(`• Descuento madurez actual: -${(calculations.maturityDiscount * 100).toFixed(0)}% - Valor ya capturado`, margin + 2, y, 8, gray);
+      y += 8;
+      addText(`Resultado: ${Math.round(calculations.upliftYear1Percent * 100)}% de uplift en año 1, decayendo a ${Math.round(calculations.upliftYear2Percent * 100)}% (año 2) y ${Math.round(calculations.upliftYear3Percent * 100)}% (año 3)`, margin, y, 9, gray, 'italic');
+      y += 12;
+      
+      // Justificación TCO
+      addText('JUSTIFICACIÓN DEL AHORRO EN TCO', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText(`VTEX es 100% SaaS, eliminando costos de: licencias perpetuas, hosting dedicado, parches de`, margin, y, 9, gray);
+      y += 5;
+      addText(`seguridad, actualizaciones de versión y escalabilidad manual. Comparativa anual:`, margin, y, 9, gray);
+      y += 7;
+      addText(`${platformNames[currentPlatform].split(' /')[0]}: ${formatMoney(calculations.currentPlatformAnnual)}/año`, margin + 5, y, 9, [220, 38, 38]);
+      y += 5;
+      addText(`VTEX: ${formatMoney(calculations.vtexAnnualTechOnly)}/año (suscripción + soporte)`, margin + 5, y, 9, green);
+      y += 5;
+      addText(`Ahorro: ${formatMoney(calculations.tcoSavingsAnnual)}/año (${calculations.tcoSavingsPercent}%)`, margin + 5, y, 9, green, 'bold');
+      y += 12;
+      
+      // ===== PÁGINA 2 =====
+      doc.addPage();
+      y = 15;
+      
+      // Justificación Equipo
+      addText('OPTIMIZACIÓN DE EQUIPO TÉCNICO', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText('La reducción de carga operativa permite reasignar recursos a tareas de mayor valor:', margin, y, 9, gray);
+      y += 7;
+      addText(`• Equipo interno: ${calculations.internalTeamBefore} → ${calculations.internalTeamAfter} FTE (${Math.round((1 - calculations.internalTeamAfter/calculations.internalTeamBefore) * 100)}% reducción)`, margin + 2, y, 9, gray);
+      y += 5;
+      addText(`• Horas agencia: ${calculations.agencyHoursBefore} → ${calculations.agencyHoursAfter} hrs/mes (${Math.round((1 - calculations.agencyHoursAfter/calculations.agencyHoursBefore) * 100)}% reducción)`, margin + 2, y, 9, gray);
+      y += 5;
+      addText(`• Ahorro anual: ${formatMoney(calculations.teamSavings)}`, margin + 2, y, 9, green, 'bold');
+      y += 12;
+      
+      // Timeline
+      addText('TIMELINE DE IMPLEMENTACIÓN', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText(`Duración estimada: ${calculations.migrationMonths} meses (tamaño: ${calculations.size})`, margin, y, 9, gray);
+      y += 6;
+      addText('Fases: Discovery (15%) → Setup & Dev (45%) → Testing (25%) → Go-Live (15%)', margin, y, 9, gray);
+      y += 12;
+      
+      // Comparativa de plataformas
+      addText(`COMPARATIVA: ${platformNames[currentPlatform].split(' /')[0].toUpperCase()} VS VTEX`, margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      addText(`Score ponderado: ${currentScore.toFixed(0)} vs ${vtexScore.toFixed(0)} (VTEX +${(vtexScore - currentScore).toFixed(0)} puntos)`, margin, y, 9, gray);
+      y += 6;
+      addText('Criterios evaluados: Omnicanalidad, LATAM Ready, TCO, Escalabilidad, Time-to-Market, Marketplace', margin, y, 8, lightGray);
+      y += 12;
+      
+      y = addLine(y);
+      
+      // Fuentes y referencias
+      addText('FUENTES Y REFERENCIAS', margin, y, 12, blue, 'bold');
+      y += 8;
+      
+      const sources = [
+        'VTEX Business Cases - https://vtex.com/ar-es/resources/ebooks/business-cases/',
+        'VTEX ROI de plataformas - https://vtex.com/ar-es/blog/estrategia/roi-de-una-plataforma-de-comercio-digital/',
+        'VTEX Intelligent Search - https://help.vtex.com/es/tracks/vtex-intelligent-search',
+        'VTEX Security & Compliance - https://vtex.com/ar-es/security/',
+        'Gartner Voice of Customer 2024 - VTEX reconocido como Customers\' Choice',
+      ];
+      
+      sources.forEach(s => {
+        addText(`• ${s}`, margin, y, 7, lightGray);
+        y += 4;
+      });
+      
+      y += 8;
+      
+      // Costo de oportunidad
+      doc.setFillColor(254, 226, 226);
+      doc.roundedRect(margin, y, contentWidth, 25, 2, 2, 'F');
+      addText('COSTO DE OPORTUNIDAD', margin + 5, y + 8, 10, [185, 28, 28], 'bold');
+      addText(`Cada día sin migrar, tu negocio deja de capturar ${formatMoney(calculations.dailyBenefitLost)}/día`, margin + 5, y + 15, 9, [185, 28, 28]);
+      addText(`(${formatMoney(calculations.monthlyBenefitLost)}/mes en beneficios no realizados)`, margin + 5, y + 21, 8, [185, 28, 28]);
+      y += 35;
+      
+      // Footer con contacto
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 270, pageWidth, 27, 'F');
+      addText('Sebastián Balbo | Enterprise Account Executive @ VTEX', margin, 280, 9, [255, 255, 255], 'bold');
+      addText('linkedin.com/in/sebastian-balbo | calendly.com/sebastian-balbo/hablemos-de-vtex', margin, 286, 8, [148, 163, 184]);
+      addText('"El mejor momento para transformar tu negocio fue ayer. El segundo mejor momento es hoy."', margin, 292, 7, [148, 163, 184], 'italic');
+      
+      // Guardar
+      const fileName = `Analisis_ROI_VTEX_${platformNames[currentPlatform].split(' /')[0].replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
     } catch (error) {
       console.error('Error exportando PDF:', error);
-      window.print();
+      alert('Error al generar PDF. Por favor intenta de nuevo.');
     }
     setIsExporting(false);
   };
@@ -493,10 +662,15 @@ const MigrationROICalculator = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-100 p-4 md:p-6" ref={dashboardRef}>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header con Logo VTEX */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Calculadora de Migración a VTEX</h1>
-          <p className="text-gray-600">Análisis completo de ROI, TCO, Cashflow y Comparativa de plataformas</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Calculadora de Migración a VTEX</h1>
+              <p className="text-gray-600">Análisis completo de ROI, TCO, Cashflow y Comparativa de plataformas</p>
+            </div>
+            <img src="/outputs/logo-vtex.png" alt="VTEX" className="h-10 md:h-12 object-contain" />
+          </div>
         </div>
 
         {/* Input Panels */}
@@ -950,10 +1124,44 @@ const MigrationROICalculator = () => {
               Agendar Demo Ejecutiva
             </a>
           </div>
-          <p className="text-center text-xs text-gray-500 mt-4">
-            Este análisis es una estimación basada en datos de mercado y benchmarks de industria.
-          </p>
         </div>
+
+        {/* Bio & Inspirational Footer */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 mt-6 text-white">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <img 
+              src="/outputs/sebastian-balbo.png" 
+              alt="Sebastián Balbo" 
+              className="w-24 h-24 rounded-full object-cover border-4 border-white/20 shadow-lg"
+            />
+            <div className="flex-1 text-center md:text-left">
+              <h4 className="text-lg font-bold">Sebastián Balbo</h4>
+              <p className="text-sm text-slate-300 mb-2">Enterprise Account Executive @ VTEX</p>
+              <p className="text-xs text-slate-400">Especialista en transformación digital y comercio unificado para retailers de Latinoamérica.</p>
+              <a 
+                href="https://www.linkedin.com/in/sebastian-balbo/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 mt-2"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                LinkedIn
+              </a>
+            </div>
+            <div className="hidden md:block w-px h-16 bg-slate-600"></div>
+            <div className="flex-1 text-center md:text-right">
+              <p className="text-lg italic text-slate-300 leading-relaxed">
+                "El mejor momento para transformar tu negocio fue ayer.<br/>
+                <span className="text-white font-semibold">El segundo mejor momento es hoy."</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <p className="text-center text-xs text-gray-500 mt-4 mb-2">
+          Este análisis es una estimación basada en datos de mercado y benchmarks de industria. Los resultados reales pueden variar.
+        </p>
       </div>
     </div>
   );
