@@ -1,157 +1,74 @@
-import React, { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, Users, ShoppingCart } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { DollarSign, TrendingUp, Users, ShoppingCart, Clock, AlertTriangle, CheckCircle, XCircle, TrendingDown, Calendar, Info, Download, Phone } from 'lucide-react';
 
-// Tabla de Suscripción VTEX Anual según GMV
+// ===== TABLAS DE DATOS =====
 const vtexSubscriptionTable = [
-  { gmv: 200000, subscription: 11000 },
-  { gmv: 400000, subscription: 13875 },
-  { gmv: 600000, subscription: 21000 },
-  { gmv: 800000, subscription: 23250 },
-  { gmv: 1000000, subscription: 23250 },
-  { gmv: 1200000, subscription: 32625 },
-  { gmv: 1400000, subscription: 32625 },
-  { gmv: 1600000, subscription: 42000 },
-  { gmv: 1800000, subscription: 42000 },
-  { gmv: 2000000, subscription: 42000 },
-  { gmv: 2250000, subscription: 51375 },
-  { gmv: 2500000, subscription: 51375 },
-  { gmv: 2750000, subscription: 60750 },
-  { gmv: 3000000, subscription: 60400 },
-  { gmv: 3250000, subscription: 63100 },
-  { gmv: 3500000, subscription: 65800 },
-  { gmv: 3750000, subscription: 68500 },
-  { gmv: 4000000, subscription: 71200 },
-  { gmv: 4250000, subscription: 73900 },
-  { gmv: 4500000, subscription: 76600 },
-  { gmv: 4750000, subscription: 79300 },
-  { gmv: 5000000, subscription: 82000 },
-  { gmv: 5250000, subscription: 84700 },
-  { gmv: 5500000, subscription: 87400 },
-  { gmv: 5750000, subscription: 90100 },
-  { gmv: 6000000, subscription: 92800 },
-  { gmv: 6250000, subscription: 95500 },
-  { gmv: 6500000, subscription: 98200 },
-  { gmv: 6750000, subscription: 100900 },
-  { gmv: 7000000, subscription: 103600 },
-  { gmv: 7250000, subscription: 106300 },
-  { gmv: 7500000, subscription: 109000 },
-  { gmv: 7750000, subscription: 111700 },
-  { gmv: 8000000, subscription: 114400 },
-  { gmv: 8250000, subscription: 117100 },
-  { gmv: 8500000, subscription: 119800 },
-  { gmv: 8750000, subscription: 122500 },
-  { gmv: 9000000, subscription: 125200 },
-  { gmv: 9250000, subscription: 127900 },
-  { gmv: 9500000, subscription: 130600 },
-  { gmv: 9750000, subscription: 133300 },
-  { gmv: 10000000, subscription: 136000 },
-  { gmv: 11000000, subscription: 143300 },
-  { gmv: 12000000, subscription: 148800 },
-  { gmv: 13000000, subscription: 154300 },
-  { gmv: 14000000, subscription: 159800 },
-  { gmv: 15000000, subscription: 165300 },
-  { gmv: 16000000, subscription: 170800 },
-  { gmv: 17000000, subscription: 176300 },
-  { gmv: 18000000, subscription: 181800 },
-  { gmv: 19000000, subscription: 187300 },
-  { gmv: 20000000, subscription: 192800 },
-  { gmv: 21000000, subscription: 198300 },
-  { gmv: 22000000, subscription: 203800 },
-  { gmv: 23000000, subscription: 209300 },
-  { gmv: 24000000, subscription: 214800 },
-  { gmv: 25000000, subscription: 220300 },
-  { gmv: 26000000, subscription: 225800 },
-  { gmv: 27000000, subscription: 231300 },
-  { gmv: 28000000, subscription: 234400 },
-  { gmv: 29000000, subscription: 236900 },
-  { gmv: 30000000, subscription: 239400 },
+  { gmv: 200000, subscription: 11000 }, { gmv: 400000, subscription: 13875 }, { gmv: 600000, subscription: 21000 },
+  { gmv: 800000, subscription: 23250 }, { gmv: 1000000, subscription: 23250 }, { gmv: 1200000, subscription: 32625 },
+  { gmv: 1400000, subscription: 32625 }, { gmv: 1600000, subscription: 42000 }, { gmv: 1800000, subscription: 42000 },
+  { gmv: 2000000, subscription: 42000 }, { gmv: 2250000, subscription: 51375 }, { gmv: 2500000, subscription: 51375 },
+  { gmv: 2750000, subscription: 60750 }, { gmv: 3000000, subscription: 60400 }, { gmv: 3250000, subscription: 63100 },
+  { gmv: 3500000, subscription: 65800 }, { gmv: 3750000, subscription: 68500 }, { gmv: 4000000, subscription: 71200 },
+  { gmv: 4250000, subscription: 73900 }, { gmv: 4500000, subscription: 76600 }, { gmv: 4750000, subscription: 79300 },
+  { gmv: 5000000, subscription: 82000 }, { gmv: 5250000, subscription: 84700 }, { gmv: 5500000, subscription: 87400 },
+  { gmv: 5750000, subscription: 90100 }, { gmv: 6000000, subscription: 92800 }, { gmv: 6250000, subscription: 95500 },
+  { gmv: 6500000, subscription: 98200 }, { gmv: 6750000, subscription: 100900 }, { gmv: 7000000, subscription: 103600 },
+  { gmv: 7250000, subscription: 106300 }, { gmv: 7500000, subscription: 109000 }, { gmv: 7750000, subscription: 111700 },
+  { gmv: 8000000, subscription: 114400 }, { gmv: 8250000, subscription: 117100 }, { gmv: 8500000, subscription: 119800 },
+  { gmv: 8750000, subscription: 122500 }, { gmv: 9000000, subscription: 125200 }, { gmv: 9250000, subscription: 127900 },
+  { gmv: 9500000, subscription: 130600 }, { gmv: 9750000, subscription: 133300 }, { gmv: 10000000, subscription: 136000 },
+  { gmv: 11000000, subscription: 143300 }, { gmv: 12000000, subscription: 148800 }, { gmv: 13000000, subscription: 154300 },
+  { gmv: 14000000, subscription: 159800 }, { gmv: 15000000, subscription: 165300 }, { gmv: 16000000, subscription: 170800 },
+  { gmv: 17000000, subscription: 176300 }, { gmv: 18000000, subscription: 181800 }, { gmv: 19000000, subscription: 187300 },
+  { gmv: 20000000, subscription: 192800 }, { gmv: 21000000, subscription: 198300 }, { gmv: 22000000, subscription: 203800 },
+  { gmv: 23000000, subscription: 209300 }, { gmv: 24000000, subscription: 214800 }, { gmv: 25000000, subscription: 220300 },
+  { gmv: 26000000, subscription: 225800 }, { gmv: 27000000, subscription: 231300 }, { gmv: 28000000, subscription: 234400 },
+  { gmv: 29000000, subscription: 236900 }, { gmv: 30000000, subscription: 239400 },
 ];
 
-// Tabla de Implementación Base según GMV
 const implementationBaseTable = [
-  { gmv: 200000, cost: 12000 },
-  { gmv: 400000, cost: 12000 },
-  { gmv: 600000, cost: 12000 },
-  { gmv: 800000, cost: 12000 },
-  { gmv: 1000000, cost: 12000 },
-  { gmv: 1200000, cost: 12000 },
-  { gmv: 1400000, cost: 14000 },
-  { gmv: 1600000, cost: 14000 },
-  { gmv: 1800000, cost: 14000 },
-  { gmv: 2000000, cost: 14000 },
-  { gmv: 2250000, cost: 14000 },
-  { gmv: 2500000, cost: 14000 },
-  { gmv: 2750000, cost: 18750 },
-  { gmv: 3000000, cost: 18750 },
-  { gmv: 3250000, cost: 18750 },
-  { gmv: 3500000, cost: 18750 },
-  { gmv: 3750000, cost: 18750 },
-  { gmv: 4000000, cost: 20000 },
-  { gmv: 4250000, cost: 20000 },
-  { gmv: 4500000, cost: 20000 },
-  { gmv: 4750000, cost: 20000 },
-  { gmv: 5000000, cost: 25000 },
-  { gmv: 5250000, cost: 25000 },
-  { gmv: 5500000, cost: 25000 },
-  { gmv: 5750000, cost: 25000 },
-  { gmv: 6000000, cost: 30000 },
-  { gmv: 6250000, cost: 31250 },
-  { gmv: 6500000, cost: 32500 },
-  { gmv: 6750000, cost: 33750 },
-  { gmv: 7000000, cost: 35000 },
-  { gmv: 7250000, cost: 36250 },
-  { gmv: 7500000, cost: 37500 },
-  { gmv: 7750000, cost: 38750 },
-  { gmv: 8000000, cost: 40000 },
-  { gmv: 8250000, cost: 41250 },
-  { gmv: 8500000, cost: 42500 },
-  { gmv: 8750000, cost: 43750 },
-  { gmv: 9000000, cost: 45000 },
-  { gmv: 9250000, cost: 46250 },
-  { gmv: 9500000, cost: 47500 },
-  { gmv: 9750000, cost: 48750 },
-  { gmv: 10000000, cost: 50000 },
-  { gmv: 11000000, cost: 55000 },
-  { gmv: 12000000, cost: 60000 },
-  { gmv: 13000000, cost: 65000 },
-  { gmv: 14000000, cost: 70000 },
-  { gmv: 15000000, cost: 75000 },
-  { gmv: 16000000, cost: 80000 },
-  { gmv: 17000000, cost: 85000 },
-  { gmv: 18000000, cost: 90000 },
-  { gmv: 19000000, cost: 95000 },
-  { gmv: 20000000, cost: 100000 },
-  { gmv: 21000000, cost: 105000 },
-  { gmv: 22000000, cost: 110000 },
-  { gmv: 23000000, cost: 115000 },
-  { gmv: 24000000, cost: 120000 },
-  { gmv: 25000000, cost: 125000 },
-  { gmv: 26000000, cost: 130000 },
-  { gmv: 27000000, cost: 135000 },
-  { gmv: 28000000, cost: 140000 },
-  { gmv: 29000000, cost: 145000 },
-  { gmv: 30000000, cost: 150000 },
+  { gmv: 200000, cost: 12000 }, { gmv: 400000, cost: 12000 }, { gmv: 600000, cost: 12000 },
+  { gmv: 800000, cost: 12000 }, { gmv: 1000000, cost: 12000 }, { gmv: 1200000, cost: 12000 },
+  { gmv: 1400000, cost: 14000 }, { gmv: 1600000, cost: 14000 }, { gmv: 1800000, cost: 14000 },
+  { gmv: 2000000, cost: 14000 }, { gmv: 2250000, cost: 14000 }, { gmv: 2500000, cost: 14000 },
+  { gmv: 2750000, cost: 18750 }, { gmv: 3000000, cost: 18750 }, { gmv: 3250000, cost: 18750 },
+  { gmv: 3500000, cost: 18750 }, { gmv: 3750000, cost: 18750 }, { gmv: 4000000, cost: 20000 },
+  { gmv: 4250000, cost: 20000 }, { gmv: 4500000, cost: 20000 }, { gmv: 4750000, cost: 20000 },
+  { gmv: 5000000, cost: 25000 }, { gmv: 5250000, cost: 25000 }, { gmv: 5500000, cost: 25000 },
+  { gmv: 5750000, cost: 25000 }, { gmv: 6000000, cost: 30000 }, { gmv: 6250000, cost: 31250 },
+  { gmv: 6500000, cost: 32500 }, { gmv: 6750000, cost: 33750 }, { gmv: 7000000, cost: 35000 },
+  { gmv: 7250000, cost: 36250 }, { gmv: 7500000, cost: 37500 }, { gmv: 7750000, cost: 38750 },
+  { gmv: 8000000, cost: 40000 }, { gmv: 8250000, cost: 41250 }, { gmv: 8500000, cost: 42500 },
+  { gmv: 8750000, cost: 43750 }, { gmv: 9000000, cost: 45000 }, { gmv: 9250000, cost: 46250 },
+  { gmv: 9500000, cost: 47500 }, { gmv: 9750000, cost: 48750 }, { gmv: 10000000, cost: 50000 },
+  { gmv: 11000000, cost: 55000 }, { gmv: 12000000, cost: 60000 }, { gmv: 13000000, cost: 65000 },
+  { gmv: 14000000, cost: 70000 }, { gmv: 15000000, cost: 75000 }, { gmv: 16000000, cost: 80000 },
+  { gmv: 17000000, cost: 85000 }, { gmv: 18000000, cost: 90000 }, { gmv: 19000000, cost: 95000 },
+  { gmv: 20000000, cost: 100000 }, { gmv: 21000000, cost: 105000 }, { gmv: 22000000, cost: 110000 },
+  { gmv: 23000000, cost: 115000 }, { gmv: 24000000, cost: 120000 }, { gmv: 25000000, cost: 125000 },
+  { gmv: 26000000, cost: 130000 }, { gmv: 27000000, cost: 135000 }, { gmv: 28000000, cost: 140000 },
+  { gmv: 29000000, cost: 145000 }, { gmv: 30000000, cost: 150000 },
 ];
 
-const getImplementationBase = (gmvUSD) => {
-  if (gmvUSD <= implementationBaseTable[0].gmv) {
-    return implementationBaseTable[0].cost;
-  }
-  const lastTwo = implementationBaseTable.slice(-2);
+// ===== FUNCIONES AUXILIARES =====
+const interpolate = (table, gmvUSD, valueKey) => {
+  if (gmvUSD <= table[0].gmv) return table[0][valueKey];
+  const lastTwo = table.slice(-2);
   if (gmvUSD >= lastTwo[1].gmv) {
-    const rate = (lastTwo[1].cost - lastTwo[0].cost) / (lastTwo[1].gmv - lastTwo[0].gmv);
-    return lastTwo[1].cost + (gmvUSD - lastTwo[1].gmv) * rate;
+    const rate = (lastTwo[1][valueKey] - lastTwo[0][valueKey]) / (lastTwo[1].gmv - lastTwo[0].gmv);
+    return lastTwo[1][valueKey] + (gmvUSD - lastTwo[1].gmv) * rate;
   }
-  for (let i = 0; i < implementationBaseTable.length - 1; i++) {
-    const lower = implementationBaseTable[i];
-    const upper = implementationBaseTable[i + 1];
-    if (gmvUSD >= lower.gmv && gmvUSD < upper.gmv) {
-      const ratio = (gmvUSD - lower.gmv) / (upper.gmv - lower.gmv);
-      return lower.cost + ratio * (upper.cost - lower.cost);
+  for (let i = 0; i < table.length - 1; i++) {
+    if (gmvUSD >= table[i].gmv && gmvUSD < table[i + 1].gmv) {
+      const ratio = (gmvUSD - table[i].gmv) / (table[i + 1].gmv - table[i].gmv);
+      return table[i][valueKey] + ratio * (table[i + 1][valueKey] - table[i][valueKey]);
     }
   }
-  return implementationBaseTable[implementationBaseTable.length - 1].cost;
+  return table[table.length - 1][valueKey];
 };
+
+const getVtexSubscription = (gmvUSD) => interpolate(vtexSubscriptionTable, gmvUSD, 'subscription');
+const getImplementationBase = (gmvUSD) => interpolate(implementationBaseTable, gmvUSD, 'cost');
 
 const getStoreCost = (storeCount) => {
   if (storeCount === 0) return 0;
@@ -165,112 +82,102 @@ const getStoreCost = (storeCount) => {
   return 300;
 };
 
-const featureImplementationCosts = {
-  nativeMarketplace: 5000,
-  intelligentSearch: 0,
-  smartCheckout: 0,
-  oms: 0,
-  stock360: 5000,
-  advancedPromos: 0,
-  subscriptions: 4000,
-  vtexInStore: 5000,
-  liveShopping: 2500,
-  aiRecommendations: 3000,
-  pricingManagement: 2000,
-  multiCurrency: 5000,
-};
-
-const industryBaseUplift = {
-  fashion: 0.22,
-  beauty: 0.24,
-  pharmacy: 0.19,
-  grocery: 0.18,
-  sports: 0.20,
-  electronics: 0.21,
-  home: 0.19,
-  toys: 0.22,
-  department: 0.20,
-  marketplace: 0.23,
-};
-
-const featureUpliftBonus = {
-  nativeMarketplace: 0.020,
-  intelligentSearch: 0.015,
-  smartCheckout: 0.015,
-  oms: 0.010,
-  stock360: 0.015,
-  advancedPromos: 0.010,
-  subscriptions: 0.020,
-  vtexInStore: 0.015,
-  liveShopping: 0.010,
-  aiRecommendations: 0.015,
-  pricingManagement: 0.010,
-  multiCurrency: 0.005,
-};
-
-const getStoreUpliftBonus = (storeCount) => {
-  if (storeCount === 0) return 0;
-  if (storeCount <= 5) return 0.02;
-  if (storeCount <= 15) return 0.04;
-  if (storeCount <= 30) return 0.055;
-  if (storeCount <= 50) return 0.07;
-  return 0.08;
-};
-
-const maturityUpliftDiscount = {
-  none: 0,
-  basic: 0.03,
-  pilot: 0.06,
-  stock360: 0.09,
-  operational: 0.12,
-  advanced: 0.15,
-};
-
-const getVtexSubscription = (gmvUSD) => {
-  if (gmvUSD <= vtexSubscriptionTable[0].gmv) {
-    return vtexSubscriptionTable[0].subscription;
-  }
-  const lastTwo = vtexSubscriptionTable.slice(-2);
-  if (gmvUSD >= lastTwo[1].gmv) {
-    const rate = (lastTwo[1].subscription - lastTwo[0].subscription) / (lastTwo[1].gmv - lastTwo[0].gmv);
-    return lastTwo[1].subscription + (gmvUSD - lastTwo[1].gmv) * rate;
-  }
-  for (let i = 0; i < vtexSubscriptionTable.length - 1; i++) {
-    const lower = vtexSubscriptionTable[i];
-    const upper = vtexSubscriptionTable[i + 1];
-    if (gmvUSD >= lower.gmv && gmvUSD < upper.gmv) {
-      const ratio = (gmvUSD - lower.gmv) / (upper.gmv - lower.gmv);
-      return lower.subscription + ratio * (upper.subscription - lower.subscription);
-    }
-  }
-  return vtexSubscriptionTable[vtexSubscriptionTable.length - 1].subscription;
-};
-
-const getStoreCoverageFactor = (physicalStores) => {
-  if (physicalStores === 0) return 0;
-  if (physicalStores <= 5) return 0.20;
-  if (physicalStores <= 15) return 0.40;
-  if (physicalStores <= 30) return 0.60;
-  if (physicalStores <= 60) return 0.80;
+const getStoreCoverageFactor = (stores) => {
+  if (stores === 0) return 0;
+  if (stores <= 5) return 0.20;
+  if (stores <= 15) return 0.40;
+  if (stores <= 30) return 0.60;
+  if (stores <= 60) return 0.80;
   return 1.00;
 };
 
-const featureLabels = {
-  nativeMarketplace: 'Marketplace nativo',
-  intelligentSearch: 'Search IA',
-  smartCheckout: 'SmartCheckout + pagos locales',
-  oms: 'OMS distribuido',
-  stock360: 'Stock 360° / Omnicanal',
-  advancedPromos: 'Promos avanzadas',
-  subscriptions: 'Subscripciones',
-  vtexInStore: 'VTEX inStore / POS',
-  liveShopping: 'Live shopping & conversacional',
-  aiRecommendations: 'Recomendaciones IA',
-  pricingManagement: 'Pricing avanzado',
-  multiCurrency: 'Multi-moneda & multi-idioma',
+const getStoreUpliftBonus = (stores) => {
+  if (stores === 0) return 0;
+  if (stores <= 5) return 0.02;
+  if (stores <= 15) return 0.04;
+  if (stores <= 30) return 0.055;
+  if (stores <= 50) return 0.07;
+  return 0.08;
 };
 
+// ===== CONSTANTES =====
+const featureImplementationCosts = {
+  nativeMarketplace: 5000, intelligentSearch: 0, smartCheckout: 0, oms: 0, stock360: 5000,
+  advancedPromos: 0, subscriptions: 4000, vtexInStore: 5000, liveShopping: 2500,
+  aiRecommendations: 3000, pricingManagement: 2000, multiCurrency: 5000,
+};
+
+const industryBaseUplift = {
+  fashion: 0.22, beauty: 0.24, pharmacy: 0.19, grocery: 0.18, sports: 0.20,
+  electronics: 0.21, home: 0.19, toys: 0.22, department: 0.20, marketplace: 0.23,
+};
+
+const featureUpliftBonus = {
+  nativeMarketplace: 0.020, intelligentSearch: 0.015, smartCheckout: 0.015, oms: 0.010,
+  stock360: 0.015, advancedPromos: 0.010, subscriptions: 0.020, vtexInStore: 0.015,
+  liveShopping: 0.010, aiRecommendations: 0.015, pricingManagement: 0.010, multiCurrency: 0.005,
+};
+
+const maturityUpliftDiscount = { none: 0, basic: 0.03, pilot: 0.06, stock360: 0.09, operational: 0.12, advanced: 0.15 };
+const maturityFactors = { none: 1.0, basic: 0.85, pilot: 0.70, stock360: 0.55, operational: 0.40, advanced: 0.25 };
+
+const maturityDescriptions = {
+  none: { label: 'Sin omnicanalidad', desc: 'E-commerce y tiendas físicas operan 100% separados' },
+  basic: { label: 'Integración básica', desc: 'Consulta manual de stock, sin fulfillment cruzado' },
+  pilot: { label: 'Piloto (2-5 tiendas)', desc: 'Algunas tiendas con Ship-from-store o BOPIS en prueba' },
+  stock360: { label: 'Stock 360° implementado', desc: 'Visibilidad unificada de inventario, fulfillment limitado' },
+  operational: { label: 'Operativo (>70% tiendas)', desc: 'Ship-from-Store y BOPIS activo en mayoría de tiendas' },
+  advanced: { label: 'Avanzado (Unified Commerce)', desc: 'Omnicanalidad completa: endless aisle, clienteling, OMS unificado' },
+};
+
+const featureLabels = {
+  nativeMarketplace: { name: 'Marketplace nativo', desc: 'Vendé productos de terceros en tu tienda' },
+  intelligentSearch: { name: 'Search IA', desc: 'Búsqueda inteligente con autocomplete y sinónimos' },
+  smartCheckout: { name: 'SmartCheckout + pagos locales', desc: 'Checkout optimizado con medios de pago LATAM' },
+  oms: { name: 'OMS distribuido', desc: 'Gestión de pedidos desde múltiples orígenes' },
+  stock360: { name: 'Stock 360° / Omnicanal', desc: 'Visibilidad de inventario unificada en tiempo real' },
+  advancedPromos: { name: 'Promos avanzadas', desc: 'Reglas de descuento complejas y segmentadas' },
+  subscriptions: { name: 'Subscripciones', desc: 'Ventas recurrentes y membresías' },
+  vtexInStore: { name: 'VTEX inStore / POS', desc: 'Punto de venta integrado con el e-commerce' },
+  liveShopping: { name: 'Live shopping & conversacional', desc: 'Venta en vivo y chat commerce' },
+  aiRecommendations: { name: 'Recomendaciones IA', desc: 'Productos sugeridos personalizados por usuario' },
+  pricingManagement: { name: 'Pricing avanzado', desc: 'Precios dinámicos por región, canal o segmento' },
+  multiCurrency: { name: 'Multi-moneda & multi-idioma', desc: 'Operación internacional con localización' },
+};
+
+const platformNames = {
+  magento: 'Magento / Adobe Commerce', shopify: 'Shopify Plus', salesforce: 'Salesforce Commerce Cloud',
+  woocommerce: 'WooCommerce', prestashop: 'PrestaShop', e3: 'E3 ecommerce', otros: 'Plataforma Actual',
+};
+
+// Matriz de comparación por plataforma (scores 1-5)
+const platformComparison = {
+  magento: { omnichannel: 2, latam: 2, tco: 2, scalability: 3, timeToMarket: 2, marketplace: 2, headless: 3, support: 2 },
+  shopify: { omnichannel: 3, latam: 2, tco: 3, scalability: 4, timeToMarket: 5, marketplace: 3, headless: 4, support: 4 },
+  salesforce: { omnichannel: 4, latam: 3, tco: 1, scalability: 5, timeToMarket: 2, marketplace: 2, headless: 3, support: 4 },
+  woocommerce: { omnichannel: 1, latam: 2, tco: 4, scalability: 2, timeToMarket: 4, marketplace: 2, headless: 2, support: 2 },
+  prestashop: { omnichannel: 1, latam: 2, tco: 4, scalability: 2, timeToMarket: 3, marketplace: 2, headless: 2, support: 2 },
+  e3: { omnichannel: 2, latam: 3, tco: 3, scalability: 2, timeToMarket: 3, marketplace: 1, headless: 2, support: 3 },
+  otros: { omnichannel: 2, latam: 2, tco: 2, scalability: 2, timeToMarket: 2, marketplace: 2, headless: 2, support: 2 },
+};
+
+const vtexScores = { omnichannel: 5, latam: 5, tco: 4, scalability: 5, timeToMarket: 4, marketplace: 5, headless: 5, support: 5 };
+
+const criteriaLabels = {
+  omnichannel: { label: 'Omnicanalidad', weight: 20, desc: 'OMS nativo, Ship-from-Store, BOPIS, Stock 360' },
+  latam: { label: 'LATAM Ready', weight: 20, desc: 'Pagos locales, facturación electrónica, logística regional' },
+  tco: { label: 'TCO 3 años', weight: 15, desc: 'Costo total de propiedad incluyendo mantenimiento' },
+  scalability: { label: 'Escalabilidad', weight: 15, desc: 'Performance en picos, uptime SLA, multi-tenant' },
+  timeToMarket: { label: 'Time-to-Market', weight: 10, desc: 'Velocidad de implementación y go-live' },
+  marketplace: { label: 'Marketplace', weight: 10, desc: 'Capacidad de operar como seller y operator' },
+  headless: { label: 'Headless/Composable', weight: 5, desc: 'Arquitectura desacoplada y APIs' },
+  support: { label: 'Soporte & Ecosystem', weight: 5, desc: 'Partners, documentación, comunidad' },
+};
+
+// ===== COMPONENTE PRINCIPAL =====
 const MigrationROICalculator = () => {
+  const dashboardRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState('magento');
   const [gmv, setGmv] = useState(10);
   const [industry, setIndustry] = useState('fashion');
@@ -283,46 +190,15 @@ const MigrationROICalculator = () => {
   const [omnichannelMaturity, setOmnichannelMaturity] = useState('none');
 
   const [selectedFeatures, setSelectedFeatures] = useState({
-    nativeMarketplace: true,
-    intelligentSearch: true,
-    smartCheckout: true,
-    oms: true,
-    stock360: true,
-    advancedPromos: true,
-    subscriptions: false,
-    vtexInStore: false,
-    liveShopping: false,
-    aiRecommendations: true,
-    pricingManagement: true,
-    multiCurrency: false,
+    nativeMarketplace: true, intelligentSearch: true, smartCheckout: true, oms: true,
+    stock360: true, advancedPromos: true, subscriptions: false, vtexInStore: false,
+    liveShopping: false, aiRecommendations: true, pricingManagement: true, multiCurrency: false,
   });
 
-  const handleAgencyHoursChange = (value) => {
-    const numValue = parseInt(value) || 0;
-    const roundedValue = Math.round(numValue / 10) * 10;
-    setAgencyHours(Math.max(0, Math.min(500, roundedValue)));
-  };
-
-  const handleAgencyRateChange = (value) => {
-    const numValue = parseInt(value) || 0;
-    const roundedValue = Math.round(numValue / 10) * 10;
-    setAgencyRate(Math.max(10, Math.min(500, roundedValue)));
-  };
-  
-  const handleGmvChange = (value) => {
-    const numValue = parseFloat(String(value)) || 0;
-    const roundedValue = Math.round(numValue * 10) / 10;
-    setGmv(Math.max(0.1, Math.min(200, roundedValue)));
-  };
-
-  const handleGmvIncrement = () => {
-    let step = gmv < 1 ? 0.2 : gmv < 10 ? 0.5 : 1;
-    handleGmvChange(Math.round((gmv + step) * 10) / 10);
-  };
-
-  const handleGmvDecrement = () => {
-    let step = gmv <= 1 ? 0.2 : gmv <= 10 ? 0.5 : 1;
-    handleGmvChange(Math.round((gmv - step) * 10) / 10);
+  const handleGmvChange = (value) => setGmv(Math.max(0.1, Math.min(200, Math.round(parseFloat(value || 0) * 10) / 10)));
+  const handleGmvStep = (delta) => {
+    const step = gmv < 1 ? 0.2 : gmv < 10 ? 0.5 : 1;
+    handleGmvChange(gmv + (delta * step));
   };
 
   const calculations = useMemo(() => {
@@ -334,9 +210,7 @@ const MigrationROICalculator = () => {
     // UPLIFT
     const baseUplift = industryBaseUplift[industry];
     let featuresUpliftBonus = 0;
-    Object.keys(selectedFeatures).forEach((feature) => {
-      if (selectedFeatures[feature]) featuresUpliftBonus += featureUpliftBonus[feature] || 0;
-    });
+    Object.keys(selectedFeatures).forEach(f => { if (selectedFeatures[f]) featuresUpliftBonus += featureUpliftBonus[f] || 0; });
     const storesUpliftBonus = getStoreUpliftBonus(physicalStores);
     const maturityDiscount = maturityUpliftDiscount[omnichannelMaturity];
     
@@ -349,13 +223,10 @@ const MigrationROICalculator = () => {
     const revenueUpliftYear3 = gmvUSD * upliftYear3Percent;
     
     // OMNI
-    const maturityDiscounts = { none: 1.0, basic: 0.85, pilot: 0.70, stock360: 0.55, operational: 0.40, advanced: 0.25 };
-    const maturityFactor = maturityDiscounts[omnichannelMaturity];
+    const maturityFactor = maturityFactors[omnichannelMaturity];
     const storeCoverageFactor = getStoreCoverageFactor(physicalStores);
-    const hasPhysicalStores = physicalStores > 0;
-
     let omniTotal = 0;
-    if (hasPhysicalStores) {
+    if (physicalStores > 0) {
       const stock360Impact = gmvUSD * 0.10 * 0.70 * maturityFactor * storeCoverageFactor +
                             gmvUSD * 0.25 * 0.09 * maturityFactor * storeCoverageFactor +
                             gmvUSD * 0.25 * 0.27 * 0.08 * maturityFactor * storeCoverageFactor;
@@ -366,13 +237,12 @@ const MigrationROICalculator = () => {
       const bopis = gmvUSD * 0.18 * maturityFactor * storeCoverageFactor +
                    annualOrders * 0.20 * 6.40 * maturityFactor * storeCoverageFactor +
                    annualOrders * 0.20 * 0.35 * 45 * maturityFactor * storeCoverageFactor;
-      const endlessAisle = gmvUSD * 0.40 * 0.12 * 0.75 * maturityFactor +
-                          gmvUSD * 0.40 * 0.49 * maturityFactor;
+      const endlessAisle = gmvUSD * 0.40 * 0.12 * 0.75 * maturityFactor + gmvUSD * 0.40 * 0.49 * maturityFactor;
       const workingCapital = gmvUSD * 0.60 * 22 / 365 * 0.10 * maturityFactor * storeCoverageFactor;
       omniTotal = (stock360Impact + shipFromStore + bopis + endlessAisle + workingCapital) * 0.50;
     }
     
-    // FEATURES GAP
+    // FEATURE GAP
     const featureCosts = {
       magento: { nativeMarketplace: 120000, intelligentSearch: 60000, smartCheckout: 45000, oms: 60000, stock360: 50000, advancedPromos: 40000, subscriptions: 30000, vtexInStore: 70000, liveShopping: 35000, aiRecommendations: 50000, pricingManagement: 30000, multiCurrency: 25000 },
       shopify: { nativeMarketplace: 90000, intelligentSearch: 45000, smartCheckout: 35000, oms: 45000, stock360: 40000, advancedPromos: 30000, subscriptions: 20000, vtexInStore: 50000, liveShopping: 30000, aiRecommendations: 40000, pricingManagement: 25000, multiCurrency: 20000 },
@@ -382,35 +252,26 @@ const MigrationROICalculator = () => {
       e3: { nativeMarketplace: 65000, intelligentSearch: 32000, smartCheckout: 26000, oms: 36000, stock360: 32000, advancedPromos: 26000, subscriptions: 16000, vtexInStore: 42000, liveShopping: 22000, aiRecommendations: 32000, pricingManagement: 21000, multiCurrency: 16000 },
       otros: { nativeMarketplace: 70000, intelligentSearch: 35000, smartCheckout: 28000, oms: 38000, stock360: 34000, advancedPromos: 28000, subscriptions: 18000, vtexInStore: 45000, liveShopping: 24000, aiRecommendations: 34000, pricingManagement: 22000, multiCurrency: 17000 },
     };
-    
     let featureGapSavings = 0;
-    Object.keys(selectedFeatures).forEach((feature) => {
-      if (selectedFeatures[feature]) {
-        featureGapSavings += featureCosts[currentPlatform][feature] || 0;
-      }
-    });
+    Object.keys(selectedFeatures).forEach(f => { if (selectedFeatures[f]) featureGapSavings += featureCosts[currentPlatform][f] || 0; });
     
     // TEAM
     const currentTeamCostAnnual = (internalTeam * 80000) + (agencyHours * agencyRate * 12);
-    const teamReductionRates = { small: 0.30, medium: 0.40, large: 0.45, enterprise: 0.50 };
     const size = gmv < 5 ? 'small' : gmv < 20 ? 'medium' : gmv < 50 ? 'large' : 'enterprise';
-    const teamReduction = teamReductionRates[size];
+    const teamReduction = { small: 0.30, medium: 0.40, large: 0.45, enterprise: 0.50 }[size];
     const vtexInternalTeam = Math.ceil(internalTeam * (1 - teamReduction));
     const vtexAgencyHours = Math.ceil(agencyHours * 0.35);
     const vtexTeamCostAnnual = (vtexInternalTeam * 80000) + (vtexAgencyHours * agencyRate * 12);
     const teamSavingsAnnual = currentTeamCostAnnual - vtexTeamCostAnnual;
     
     // MIGRATION
-    const migrationMonthsBySize = { small: 3, medium: 5, large: 7, enterprise: 9 };
-    const migrationMonths = migrationMonthsBySize[size];
+    const migrationMonths = { small: 3, medium: 5, large: 7, enterprise: 9 }[size];
     const vtexAnnualSubscription = getVtexSubscription(gmvUSD);
     const implementationBase = getImplementationBase(gmvUSD);
     const costPerStore = getStoreCost(physicalStores);
     const storeIntegrationCost = physicalStores * costPerStore;
     let featureImplementationCost = 0;
-    Object.keys(selectedFeatures).forEach((feature) => {
-      if (selectedFeatures[feature]) featureImplementationCost += featureImplementationCosts[feature] || 0;
-    });
+    Object.keys(selectedFeatures).forEach(f => { if (selectedFeatures[f]) featureImplementationCost += featureImplementationCosts[f] || 0; });
     const migrationTotal = implementationBase + storeIntegrationCost + featureImplementationCost;
     
     // TCO
@@ -423,35 +284,120 @@ const MigrationROICalculator = () => {
       e3: { license: gmv < 5 ? 25000 : 120000, hosting: gmv < 5 ? 18000 : 42000, maintenance: gmv < 5 ? 28000 : 95000, support: gmv < 5 ? 18000 : 55000 },
       otros: { license: gmv < 5 ? 35000 : 140000, hosting: gmv < 5 ? 15000 : 42000, maintenance: gmv < 5 ? 38000 : 115000, support: gmv < 5 ? 20000 : 60000 }
     };
-    
     const currentCosts = currentPlatformCosts[currentPlatform];
-    const currentPlatformTechOnly = Object.values(currentCosts).reduce((a, b) => a + b, 0);
+    const currentPlatformAnnual = Object.values(currentCosts).reduce((a, b) => a + b, 0);
     const vtexAnnualTechOnly = vtexAnnualSubscription + 8000;
-    const tcoSavings = (currentPlatformTechOnly - vtexAnnualTechOnly) * period;
-    const tcoSavingsPercent = currentPlatformTechOnly > 0 ? ((tcoSavings / (currentPlatformTechOnly * period)) * 100).toFixed(1) : 0;
+    const tcoSavingsAnnual = currentPlatformAnnual - vtexAnnualTechOnly;
+    const tcoSavings = tcoSavingsAnnual * period;
+    const tcoSavingsPercent = currentPlatformAnnual > 0 ? ((tcoSavingsAnnual / currentPlatformAnnual) * 100).toFixed(1) : 0;
     
-    // ROI
+    // REVENUE UPLIFT TOTAL
     let totalRevenueUplift = revenueUpliftYear1;
     if (period >= 2) totalRevenueUplift += revenueUpliftYear2;
     if (period >= 3) totalRevenueUplift += revenueUpliftYear3;
-    
     const totalProfitFromUplift = totalRevenueUplift * marginMultiplier;
+    
+    // TOTAL BENEFITS
     const totalSavingsValue = (teamSavingsAnnual * period) + tcoSavings + featureGapSavings;
     const totalBenefits = totalProfitFromUplift + totalSavingsValue;
     
-    const monthlyUpliftProfit = (revenueUpliftYear1 * marginMultiplier) / 12;
-    const monthlySavings = (teamSavingsAnnual + (currentPlatformTechOnly - vtexAnnualTechOnly) + (featureGapSavings / 36)) / 12;
-    const monthlyBenefit = monthlyUpliftProfit + monthlySavings;
+    // INVERSIÓN SEPARADA
+    const inversionSetup = migrationTotal; // Inversión única
+    const costoOperativoAnual = vtexAnnualSubscription; // Costo recurrente
+    const totalInvestment = inversionSetup + (costoOperativoAnual * period);
     
-    const totalInvestment = migrationTotal + (vtexAnnualSubscription * period);
+    // BENEFICIO INCREMENTAL
     const beneficioIncremental = totalBenefits - totalInvestment;
     
+    // ROI
     const roi = totalInvestment > 0 ? ((beneficioIncremental / totalInvestment) * 100).toFixed(0) : 0;
     const roiMultiplier = totalInvestment > 0 ? (beneficioIncremental / totalInvestment).toFixed(2) : 0;
-    const paybackMonths = monthlyBenefit > 0 ? (totalInvestment / monthlyBenefit).toFixed(1) : 0;
+    
+    // PAYBACK CORREGIDO - Lógica clara
+    // 
+    // Durante implementación (meses 1 a N): 
+    //   - Seguís operando con plataforma actual (costo neutro)
+    //   - Pagás el setup de VTEX (inversión a recuperar)
+    //   - Beneficio de VTEX = $0 (todavía no estás live)
+    //
+    // Post go-live (mes N+1 en adelante):
+    //   - Apagás plataforma actual
+    //   - Beneficio = Uplift×Margen + Ahorro Equipo + Ahorro TCO + Feature Gap
+    //   - tcoSavingsAnnual ya incluye (costoActual - costoVTEX), así que suscripción VTEX ya está descontada
+    
+    const monthlyUpliftProfit = (revenueUpliftYear1 * marginMultiplier) / 12;
+    const monthlyTeamSavings = teamSavingsAnnual / 12;
+    const monthlyTcoSavings = tcoSavingsAnnual / 12; // Ya incluye la diferencia (Magento - VTEX)
+    const monthlyFeatureGapSavings = featureGapSavings / 36;
+    
+    // Beneficio mensual NETO post go-live (TCO ya descuenta suscripción VTEX)
+    const monthlyBenefitNet = monthlyUpliftProfit + monthlyTeamSavings + monthlyTcoSavings + monthlyFeatureGapSavings;
+    
+    // Payback = meses de implementación (sin beneficio) + meses para recuperar setup
+    const monthsToRecoverSetup = monthlyBenefitNet > 0 ? (inversionSetup / monthlyBenefitNet) : 999;
+    const paybackMonths = monthlyBenefitNet > 0 
+      ? (migrationMonths + monthsToRecoverSetup).toFixed(1) 
+      : 'N/A';
+    
+    // COSTO DE OPORTUNIDAD (beneficio perdido por no migrar)
+    // Es el beneficio mensual que podrías tener si ya estuvieras en VTEX
+    const dailyBenefitLost = monthlyBenefitNet / 30;
+    const monthlyBenefitLost = monthlyBenefitNet;
+    
+    // CASHFLOW MENSUAL - Corregido
+    // Meses 1-N (implementación): Solo costos, beneficio = 0
+    // Mes N+1 en adelante: Beneficios activos
+    const cashflowData = [];
+    let cumulative = 0;
+    const monthsToShow = Math.max(period * 12, 24);
+    
+    for (let m = 1; m <= monthsToShow; m++) {
+      let monthCost = 0;
+      let monthBenefit = 0;
+      
+      if (m <= migrationMonths) {
+        // Durante implementación: solo costos
+        if (m === 1) {
+          monthCost = inversionSetup; // Setup upfront en mes 1
+        }
+        // Durante implementación seguís pagando plataforma actual (costo neutro, no lo sumamos)
+        // No hay beneficio de VTEX todavía
+        monthBenefit = 0;
+      } else {
+        // Post go-live: beneficios activos
+        const monthsOperating = m - migrationMonths;
+        const yearOfOperation = Math.ceil(monthsOperating / 12);
+        
+        let upliftThisMonth = 0;
+        if (yearOfOperation === 1) upliftThisMonth = revenueUpliftYear1 / 12;
+        else if (yearOfOperation === 2) upliftThisMonth = revenueUpliftYear2 / 12;
+        else upliftThisMonth = revenueUpliftYear3 / 12;
+        
+        // Beneficio mensual post go-live (TCO savings ya incluye la diferencia de costos)
+        monthBenefit = (upliftThisMonth * marginMultiplier) + (teamSavingsAnnual / 12) + (tcoSavingsAnnual / 12) + (featureGapSavings / 36);
+        monthCost = 0; // Los costos de VTEX ya están descontados en tcoSavingsAnnual
+      }
+      
+      const netFlow = monthBenefit - monthCost;
+      cumulative += netFlow;
+      
+      const prevCumulative = cashflowData.length > 0 ? cashflowData[cashflowData.length - 1].cumulative : 0;
+      
+      cashflowData.push({
+        month: m,
+        cost: monthCost,
+        benefit: monthBenefit,
+        net: netFlow,
+        cumulative: cumulative,
+        isImplementation: m <= migrationMonths,
+        isBreakeven: cumulative >= 0 && prevCumulative < 0
+      });
+    }
+    
+    const breakevenMonth = cashflowData.find(d => d.cumulative >= 0 && d.month > migrationMonths)?.month || null;
     
     return {
-      gmvUSD, size,
+      gmvUSD, size, migrationMonths,
       upliftYear1Percent, upliftYear2Percent, upliftYear3Percent,
       revenueUpliftYear1, revenueUpliftYear2, revenueUpliftYear3,
       baseUplift, featuresUpliftBonus, storesUpliftBonus, maturityDiscount,
@@ -459,65 +405,117 @@ const MigrationROICalculator = () => {
       currentTeamCost: currentTeamCostAnnual, teamSavings: teamSavingsAnnual,
       internalTeamBefore: internalTeam, internalTeamAfter: vtexInternalTeam,
       agencyHoursBefore: agencyHours, agencyHoursAfter: vtexAgencyHours,
-      tcoSavings, tcoSavingsPercent,
-      migrationMonths, vtexAnnualSubscription, migrationTotal,
-      implementationBase, storeIntegrationCost, featureImplementationCost, costPerStore,
-      totalRevenueUplift, totalProfitFromUplift,
-      monthlyBenefit, totalBenefits, totalInvestment, beneficioIncremental,
-      roi, roiMultiplier, paybackMonths
+      currentPlatformAnnual, vtexAnnualTechOnly, tcoSavings, tcoSavingsAnnual, tcoSavingsPercent,
+      vtexAnnualSubscription, inversionSetup, costoOperativoAnual,
+      implementationBase, storeIntegrationCost, featureImplementationCost,
+      totalRevenueUplift, totalProfitFromUplift, totalBenefits,
+      totalInvestment, beneficioIncremental, roi, roiMultiplier, paybackMonths,
+      monthlyBenefitNet, dailyBenefitLost, monthlyBenefitLost,
+      cashflowData, breakevenMonth
     };
-  }, [currentPlatform, gmv, industry, period, profitMargin, internalTeam, agencyHours, 
-      agencyRate, physicalStores, omnichannelMaturity, selectedFeatures]);
+  }, [currentPlatform, gmv, industry, period, profitMargin, internalTeam, agencyHours, agencyRate, physicalStores, omnichannelMaturity, selectedFeatures]);
 
-  const formatMoney = (value) => {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
-  };
-
-  const toggleFeature = (feature) => setSelectedFeatures(prev => ({ ...prev, [feature]: !prev[feature] }));
+  const formatMoney = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+  const toggleFeature = (f) => setSelectedFeatures(prev => ({ ...prev, [f]: !prev[f] }));
   const selectedFeatureCount = Object.values(selectedFeatures).filter(Boolean).length;
 
+  // Función para exportar PDF
+  const exportToPDF = async () => {
+    setIsExporting(true);
+    try {
+      // Cargar librerías dinámicamente
+      const html2canvasScript = document.createElement('script');
+      html2canvasScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      document.head.appendChild(html2canvasScript);
+      
+      const jspdfScript = document.createElement('script');
+      jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      document.head.appendChild(jspdfScript);
+      
+      // Esperar a que carguen
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (window.html2canvas && window.jspdf) {
+        const element = dashboardRef.current;
+        const canvas = await window.html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#f8fafc'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210;
+        const pageHeight = 297;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        const fileName = `Analisis_ROI_VTEX_${platformNames[currentPlatform].split(' /')[0].replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+      } else {
+        // Fallback a window.print()
+        window.print();
+      }
+    } catch (error) {
+      console.error('Error exportando PDF:', error);
+      window.print();
+    }
+    setIsExporting(false);
+  };
+
+  // URL de Calendly
+  const calendlyUrl = 'https://calendly.com/sebastian-balbo/hablemos-de-vtex';
+
+  // Calcular scores de comparación
+  const currentPlatformScores = platformComparison[currentPlatform];
+  const calculateWeightedScore = (scores) => {
+    let total = 0;
+    Object.keys(criteriaLabels).forEach(k => {
+      total += (scores[k] / 5) * criteriaLabels[k].weight;
+    });
+    return total;
+  };
+  const currentScore = calculateWeightedScore(currentPlatformScores);
+  const vtexScore = calculateWeightedScore(vtexScores);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-100 p-4 md:p-6" ref={dashboardRef}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Calculadora de Migración a VTEX</h1>
-          <p className="text-gray-600">Análisis completo de ROI, TCO y P&L de migración</p>
+          <p className="text-gray-600">Análisis completo de ROI, TCO, Cashflow y Comparativa de plataformas</p>
         </div>
 
         {/* Input Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Panel 1: Empresa */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Datos de tu Empresa</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Plataforma Actual</label>
                 <select value={currentPlatform} onChange={(e) => setCurrentPlatform(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
                   <option value="magento">Magento / Adobe Commerce</option>
-                  <option value="shopify">Shopify / Shopify Plus</option>
+                  <option value="shopify">Shopify Plus</option>
                   <option value="salesforce">Salesforce Commerce Cloud</option>
                   <option value="woocommerce">WooCommerce</option>
                   <option value="prestashop">PrestaShop</option>
                   <option value="e3">E3 ecommerce</option>
                   <option value="otros">Otros / Custom</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">GMV Anual (Millones USD)</label>
-                <div className="flex items-center gap-2">
-                  <button onClick={handleGmvDecrement} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={gmv} onChange={(e) => handleGmvChange(e.target.value)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" min="0.1" max="200" step="0.1" />
-                  <button onClick={handleGmvIncrement} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
-                </div>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <label className="block text-sm font-medium text-blue-800 mb-2">Margen Operativo / Neto (%)</label>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="1" max="60" value={profitMargin} onChange={(e) => setProfitMargin(parseInt(e.target.value))} className="flex-1" />
-                  <span className="font-bold text-blue-700 w-12 text-right">{profitMargin}%</span>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">Se usa para calcular el beneficio real sobre el Uplift de ventas.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Industria</label>
@@ -535,25 +533,40 @@ const MigrationROICalculator = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Período de Análisis (años)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">GMV Anual (Millones USD)</label>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPeriod(Math.max(1, period - 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={period} onChange={(e) => setPeriod(Math.max(1, Math.min(3, Number(e.target.value) || 1)))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" min="1" max="3" />
-                  <button onClick={() => setPeriod(Math.min(3, period + 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
+                  <button onClick={() => handleGmvStep(-1)} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
+                  <input type="number" value={gmv} onChange={(e) => handleGmvChange(e.target.value)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" min="0.1" max="200" step="0.1" />
+                  <button onClick={() => handleGmvStep(1)} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Período a Analizar (años)</label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3].map(y => (
+                    <button key={y} onClick={() => setPeriod(y)} className={`flex-1 py-2 rounded-lg font-bold transition ${period === y ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>{y} año{y > 1 ? 's' : ''}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <label className="block text-sm font-medium text-blue-800 mb-2">Margen Neto (%) | última línea del P&L</label>
+                <div className="flex items-center gap-3">
+                  <input type="range" min="1" max="60" value={profitMargin} onChange={(e) => setProfitMargin(parseInt(e.target.value))} className="flex-1" />
+                  <span className="font-bold text-blue-700 w-12 text-right">{profitMargin}%</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Panel 2: Equipo */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Equipo Técnico</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Equipo Interno (FTE)</label>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setInternalTeam(Math.max(0, internalTeam - 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={internalTeam} onChange={(e) => setInternalTeam(Math.max(0, Math.min(50, Number(e.target.value) || 0)))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" />
+                  <input type="number" value={internalTeam} onChange={(e) => setInternalTeam(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" />
                   <button onClick={() => setInternalTeam(Math.min(50, internalTeam + 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Costo: $80k/año por persona</p>
@@ -562,7 +575,7 @@ const MigrationROICalculator = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Agencia (Horas/Mes)</label>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setAgencyHours(Math.max(0, agencyHours - 10))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={agencyHours} onChange={(e) => handleAgencyHoursChange(e.target.value)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" step="10" />
+                  <input type="number" value={agencyHours} onChange={(e) => setAgencyHours(Math.max(0, Math.min(500, Math.round(parseInt(e.target.value) || 0))))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" step="10" />
                   <button onClick={() => setAgencyHours(Math.min(500, agencyHours + 10))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
                 </div>
               </div>
@@ -570,7 +583,7 @@ const MigrationROICalculator = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Rate Agencia (USD/h)</label>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setAgencyRate(Math.max(10, agencyRate - 10))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={agencyRate} onChange={(e) => handleAgencyRateChange(e.target.value)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" step="10" />
+                  <input type="number" value={agencyRate} onChange={(e) => setAgencyRate(Math.max(10, Math.min(500, Math.round(parseInt(e.target.value) || 0))))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" step="10" />
                   <button onClick={() => setAgencyRate(Math.min(500, agencyRate + 10))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
                 </div>
               </div>
@@ -582,26 +595,23 @@ const MigrationROICalculator = () => {
           </div>
 
           {/* Panel 3: Omnicanalidad */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Omnicanalidad</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tiendas Físicas</label>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setPhysicalStores(Math.max(0, physicalStores - 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">−</button>
-                  <input type="number" value={physicalStores} onChange={(e) => setPhysicalStores(Math.max(0, Math.min(500, Number(e.target.value) || 0)))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" />
+                  <input type="number" value={physicalStores} onChange={(e) => setPhysicalStores(Math.max(0, Math.min(500, parseInt(e.target.value) || 0)))} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center" />
                   <button onClick={() => setPhysicalStores(Math.min(500, physicalStores + 1))} className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold">+</button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Madurez Actual</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Madurez Omnicanal Actual</label>
                 <select value={omnichannelMaturity} onChange={(e) => setOmnichannelMaturity(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option value="none">Sin omnicanalidad</option>
-                  <option value="basic">Integración básica</option>
-                  <option value="pilot">Piloto (2-5 tiendas)</option>
-                  <option value="stock360">Stock 360°</option>
-                  <option value="operational">Operativo (>70%)</option>
-                  <option value="advanced">Avanzado (Unified)</option>
+                  {Object.entries(maturityDescriptions).map(([key, { label, desc }]) => (
+                    <option key={key} value={key}>{label} — {desc}</option>
+                  ))}
                 </select>
               </div>
               <div className="pt-4 border-t">
@@ -613,13 +623,14 @@ const MigrationROICalculator = () => {
         </div>
 
         {/* Features Selection */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Features VTEX ({selectedFeatureCount}/12)</h2>
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Features en Roadmap ({selectedFeatureCount}/12)</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {Object.entries(featureLabels).map(([key, label]) => (
-              <button key={key} onClick={() => toggleFeature(key)} className={`p-3 rounded-lg border-2 transition-all text-left ${selectedFeatures[key] ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700'}`}>
-                <div className="text-sm font-semibold">{label}</div>
-                <div className="text-xs mt-1">{selectedFeatures[key] ? '✓ Activo' : 'Click para activar'}</div>
+            {Object.entries(featureLabels).map(([key, { name, desc }]) => (
+              <button key={key} onClick={() => toggleFeature(key)} className={`p-3 rounded-lg border-2 transition-all text-left ${selectedFeatures[key] ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}`}>
+                <div className="text-sm font-semibold">{name}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{desc}</div>
+                <div className="text-xs mt-1 font-medium">{selectedFeatures[key] ? '✓ Activo' : 'Click para activar'}</div>
               </button>
             ))}
           </div>
@@ -627,119 +638,205 @@ const MigrationROICalculator = () => {
 
         {/* KPI Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-4 md:p-6 text-white">
-            <div className="flex justify-between mb-2"><DollarSign className="w-6 h-6 md:w-8 md:h-8" /><span className="text-xl md:text-2xl font-bold">{calculations.tcoSavingsPercent}%</span></div>
-            <h3 className="text-sm md:text-lg font-semibold">Ahorro TCO</h3>
-            <p className="text-xl md:text-3xl font-bold mt-2">{formatMoney(calculations.tcoSavings)}</p>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 md:p-6 text-white">
+            <div className="flex justify-between mb-2"><DollarSign className="w-6 h-6" /><span className="text-xl font-bold">{calculations.tcoSavingsPercent}%</span></div>
+            <h3 className="text-sm font-semibold">Ahorro TCO/año</h3>
+            <p className="text-2xl font-bold mt-1">{formatMoney(calculations.tcoSavingsAnnual)}</p>
           </div>
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-4 md:p-6 text-white">
-            <div className="flex justify-between mb-2"><TrendingUp className="w-6 h-6 md:w-8 md:h-8" /><span className="text-xl md:text-2xl font-bold">{calculations.roi}%</span></div>
-            <h3 className="text-sm md:text-lg font-semibold">ROI {period}a</h3>
-            <p className="text-lg md:text-xl font-bold mt-2">{calculations.paybackMonths}m payback</p>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 md:p-6 text-white">
+            <div className="flex justify-between mb-2"><TrendingUp className="w-6 h-6" /><span className="text-xl font-bold">{calculations.roi}%</span></div>
+            <h3 className="text-sm font-semibold">ROI ({period}a)</h3>
+            <p className="text-lg font-bold mt-1">{calculations.paybackMonths}m payback</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-4 md:p-6 text-white">
-            <div className="flex justify-between mb-2"><ShoppingCart className="w-6 h-6 md:w-8 md:h-8" /><span className="text-xl md:text-2xl font-bold">+{Math.round(calculations.upliftYear1Percent*100)}%</span></div>
-            <h3 className="text-sm md:text-lg font-semibold">Uplift Año 1</h3>
-            <p className="text-xl md:text-3xl font-bold mt-2">{formatMoney(calculations.revenueUpliftYear1)}</p>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 md:p-6 text-white">
+            <div className="flex justify-between mb-2"><ShoppingCart className="w-6 h-6" /><span className="text-xl font-bold">+{Math.round(calculations.upliftYear1Percent * 100)}%</span></div>
+            <h3 className="text-sm font-semibold">Uplift Año 1</h3>
+            <p className="text-2xl font-bold mt-1">{formatMoney(calculations.revenueUpliftYear1)}</p>
           </div>
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-4 md:p-6 text-white">
-            <div className="flex justify-between mb-2"><Users className="w-6 h-6 md:w-8 md:h-8" /><span className="text-xl md:text-2xl font-bold">-{calculations.internalTeamBefore - calculations.internalTeamAfter}</span></div>
-            <h3 className="text-sm md:text-lg font-semibold">Opt. Equipo</h3>
-            <p className="text-lg md:text-xl font-bold mt-2">{formatMoney(calculations.teamSavings)}/año</p>
-          </div>
-        </div>
-
-        {/* Revenue Uplift Breakdown */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Impacto de Revenue - Desglose</h2>
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Cálculo del Uplift Año 1</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center p-3 bg-white rounded-lg border">
-                <p className="text-gray-500 mb-1">Base Industria</p>
-                <p className="text-xl font-bold text-blue-600">+{(calculations.baseUplift * 100).toFixed(0)}%</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border">
-                <p className="text-gray-500 mb-1">+ Features</p>
-                <p className="text-xl font-bold text-green-600">+{(calculations.featuresUpliftBonus * 100).toFixed(1)}%</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border">
-                <p className="text-gray-500 mb-1">+ Tiendas</p>
-                <p className="text-xl font-bold text-purple-600">+{(calculations.storesUpliftBonus * 100).toFixed(1)}%</p>
-              </div>
-              <div className="text-center p-3 bg-white rounded-lg border">
-                <p className="text-gray-500 mb-1">- Madurez</p>
-                <p className="text-xl font-bold text-red-500">-{(calculations.maturityDiscount * 100).toFixed(0)}%</p>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className={`p-4 rounded-lg border-2 ${period >= 1 ? 'bg-blue-50 border-blue-300' : 'bg-gray-100 border-gray-200'}`}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Año 1</h3>
-              <p className="text-2xl font-bold text-blue-600">{formatMoney(calculations.revenueUpliftYear1)}</p>
-              <p className="text-lg font-semibold text-blue-500">+{(calculations.upliftYear1Percent * 100).toFixed(1)}%</p>
-              <div className="mt-2 pt-2 border-t text-xs text-gray-600">
-                <span className="font-bold">Margen ({profitMargin}%):</span> {formatMoney(calculations.revenueUpliftYear1 * (profitMargin/100))}
-              </div>
-            </div>
-            <div className={`p-4 rounded-lg border-2 ${period >= 2 ? 'bg-green-50 border-green-300' : 'bg-gray-100 border-gray-200'}`}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Año 2</h3>
-              <p className={`text-2xl font-bold ${period >= 2 ? 'text-green-600' : 'text-gray-400'}`}>{formatMoney(calculations.revenueUpliftYear2)}</p>
-              <p className={`text-lg font-semibold ${period >= 2 ? 'text-green-500' : 'text-gray-400'}`}>+{(calculations.upliftYear2Percent * 100).toFixed(1)}%</p>
-              <div className="mt-2 pt-2 border-t text-xs text-gray-600">
-                <span className="font-bold">Margen ({profitMargin}%):</span> {formatMoney(calculations.revenueUpliftYear2 * (profitMargin/100))}
-              </div>
-            </div>
-            <div className={`p-4 rounded-lg border-2 ${period >= 3 ? 'bg-purple-50 border-purple-300' : 'bg-gray-100 border-gray-200'}`}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Año 3</h3>
-              <p className={`text-2xl font-bold ${period >= 3 ? 'text-purple-600' : 'text-gray-400'}`}>{formatMoney(calculations.revenueUpliftYear3)}</p>
-              <p className={`text-lg font-semibold ${period >= 3 ? 'text-purple-500' : 'text-gray-400'}`}>+{(calculations.upliftYear3Percent * 100).toFixed(1)}%</p>
-              <div className="mt-2 pt-2 border-t text-xs text-gray-600">
-                <span className="font-bold">Margen ({profitMargin}%):</span> {formatMoney(calculations.revenueUpliftYear3 * (profitMargin/100))}
-              </div>
-            </div>
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 md:p-6 text-white">
+            <div className="flex justify-between mb-2"><Clock className="w-6 h-6" /><span className="text-xl font-bold">{calculations.migrationMonths}m</span></div>
+            <h3 className="text-sm font-semibold">Implementación</h3>
+            <p className="text-lg font-bold mt-1">Tamaño: {calculations.size}</p>
           </div>
         </div>
 
-        {/* Team & Migration */}
+        {/* COMPARATIVA DE PLATAFORMAS */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">{platformNames[currentPlatform]} vs VTEX</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Scores totales */}
+            <div className="flex items-center justify-center gap-8">
+              <div className="text-center">
+                <div className="w-24 h-24 rounded-full border-4 border-gray-300 flex items-center justify-center mb-2">
+                  <span className="text-3xl font-bold text-gray-600">{currentScore.toFixed(0)}</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-600">{platformNames[currentPlatform].split(' /')[0]}</p>
+              </div>
+              <div className="text-4xl font-light text-gray-300">vs</div>
+              <div className="text-center">
+                <div className="w-24 h-24 rounded-full border-4 border-green-500 bg-green-50 flex items-center justify-center mb-2">
+                  <span className="text-3xl font-bold text-green-600">{vtexScore.toFixed(0)}</span>
+                </div>
+                <p className="text-sm font-semibold text-green-600">VTEX</p>
+              </div>
+            </div>
+            
+            {/* Barra comparativa por criterio */}
+            <div className="space-y-3">
+              {Object.entries(criteriaLabels).map(([key, { label, weight }]) => (
+                <div key={key} className="text-xs">
+                  <div className="flex justify-between mb-1">
+                    <span className="font-medium">{label} <span className="text-gray-400">({weight}%)</span></span>
+                    <span className="text-gray-500">{currentPlatformScores[key]} vs {vtexScores[key]}</span>
+                  </div>
+                  <div className="flex gap-1 h-2">
+                    <div className="flex-1 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-gray-400 rounded-full" style={{ width: `${(currentPlatformScores[key] / 5) * 100}%` }}></div>
+                    </div>
+                    <div className="flex-1 bg-green-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${(vtexScores[key] / 5) * 100}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <p className="text-sm text-green-800">
+              <strong>VTEX supera en {(vtexScore - currentScore).toFixed(0)} puntos</strong> a {platformNames[currentPlatform].split(' /')[0]}, 
+              con ventajas clave en Omnicanalidad, LATAM Ready y Marketplace nativo.
+            </p>
+          </div>
+        </div>
+
+        {/* CASHFLOW Y BREAK-EVEN */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Cashflow Mensual y Break-Even</h2>
+          
+          {/* Mini resumen */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-3 bg-orange-50 rounded-lg">
+              <p className="text-xs text-gray-600">Inversión Setup</p>
+              <p className="text-xl font-bold text-orange-600">{formatMoney(calculations.inversionSetup)}</p>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-gray-600">Costo VTEX/mes</p>
+              <p className="text-xl font-bold text-blue-600">{formatMoney(calculations.costoOperativoAnual / 12)}</p>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <p className="text-xs text-gray-600">Break-Even</p>
+              <p className="text-xl font-bold text-green-600">Mes {calculations.breakevenMonth || 'N/A'}</p>
+            </div>
+          </div>
+
+          {/* Gráfico de barras simplificado */}
+          <div className="relative">
+            <div className="flex items-end gap-1 h-48 border-b border-l border-gray-300 pl-1 pb-1">
+              {calculations.cashflowData.slice(0, Math.min(24, period * 12 + 6)).map((d, i) => {
+                const maxAbs = Math.max(...calculations.cashflowData.map(x => Math.abs(x.cumulative)));
+                const height = Math.abs(d.cumulative) / maxAbs * 100;
+                const isPositive = d.cumulative >= 0;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
+                    <div 
+                      className={`w-full rounded-t transition-all ${
+                        d.isImplementation ? 'bg-orange-400' : isPositive ? 'bg-green-500' : 'bg-red-400'
+                      }`}
+                      style={{ height: `${Math.max(height, 2)}%` }}
+                    ></div>
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-nowrap z-10">
+                      <p>Mes {d.month}</p>
+                      <p>Acumulado: {formatMoney(d.cumulative)}</p>
+                    </div>
+                    {d.month === calculations.breakevenMonth && (
+                      <div className="absolute -top-6 text-xs font-bold text-green-600">⭐</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Mes 1</span>
+              <span>Mes {Math.min(24, period * 12 + 6)}</span>
+            </div>
+          </div>
+
+          {/* Leyenda */}
+          <div className="flex gap-4 mt-4 text-xs">
+            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-400 rounded"></div> Implementación</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-400 rounded"></div> Cashflow negativo</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Cashflow positivo</div>
+            <div className="flex items-center gap-1">⭐ Break-even</div>
+          </div>
+        </div>
+
+        {/* Revenue Uplift & Team */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Optimización Equipo</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b"><span>Equipo Actual:</span><span className="font-bold">{calculations.internalTeamBefore} FTE</span></div>
-              <div className="flex justify-between py-2 border-b"><span>Con VTEX:</span><span className="font-bold text-green-600">{calculations.internalTeamAfter} FTE</span></div>
-              <div className="flex justify-between py-2 border-b"><span>Agencia Actual:</span><span className="font-bold">{calculations.agencyHoursBefore} hrs/mes</span></div>
-              <div className="flex justify-between py-2"><span>Agencia VTEX:</span><span className="font-bold text-green-600">{calculations.agencyHoursAfter} hrs/mes</span></div>
-              <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                <div className="flex justify-between"><span className="font-semibold">Ahorro Anual:</span><span className="font-bold text-green-600">{formatMoney(calculations.teamSavings)}</span></div>
+          {/* Uplift */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Uplift de Revenue</h2>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                <div><p className="text-gray-500">Base</p><p className="font-bold text-blue-600">+{(calculations.baseUplift * 100).toFixed(0)}%</p></div>
+                <div><p className="text-gray-500">Features</p><p className="font-bold text-green-600">+{(calculations.featuresUpliftBonus * 100).toFixed(1)}%</p></div>
+                <div><p className="text-gray-500">Tiendas</p><p className="font-bold text-purple-600">+{(calculations.storesUpliftBonus * 100).toFixed(1)}%</p></div>
+                <div><p className="text-gray-500">Madurez</p><p className="font-bold text-red-500">-{(calculations.maturityDiscount * 100).toFixed(0)}%</p></div>
               </div>
             </div>
+            <div className="space-y-2">
+              {[1, 2, 3].map(year => {
+                const uplift = year === 1 ? calculations.revenueUpliftYear1 : year === 2 ? calculations.revenueUpliftYear2 : calculations.revenueUpliftYear3;
+                const pct = year === 1 ? calculations.upliftYear1Percent : year === 2 ? calculations.upliftYear2Percent : calculations.upliftYear3Percent;
+                const active = period >= year;
+                return (
+                  <div key={year} className={`flex justify-between items-center p-2 rounded ${active ? 'bg-blue-50' : 'bg-gray-100 opacity-50'}`}>
+                    <span className="text-sm">Año {year}</span>
+                    <div className="text-right">
+                      <span className={`font-bold ${active ? 'text-blue-600' : 'text-gray-400'}`}>{formatMoney(uplift)}</span>
+                      <span className="text-xs text-gray-500 ml-2">(+{(pct * 100).toFixed(1)}%)</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Inversión Migración</h2>
+
+          {/* Team & Investment */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Inversión & Equipo</h2>
             <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b"><span>Impl. Base (GMV):</span><span className="font-bold">{formatMoney(calculations.implementationBase)}</span></div>
-              <div className="flex justify-between py-2 border-b"><span>+ Tiendas ({physicalStores}):</span><span className="font-bold">{formatMoney(calculations.storeIntegrationCost)}</span></div>
-              <div className="flex justify-between py-2 border-b"><span>+ Features:</span><span className="font-bold">{formatMoney(calculations.featureImplementationCost)}</span></div>
-              <div className="mt-4 p-3 bg-orange-50 rounded-lg">
-                <div className="flex justify-between"><span className="font-semibold">Total Setup:</span><span className="font-bold text-orange-600">{formatMoney(calculations.migrationTotal)}</span></div>
+              <div className="p-3 bg-orange-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Inversión Única (Setup)</p>
+                <p className="text-xl font-bold text-orange-600">{formatMoney(calculations.inversionSetup)}</p>
+                <div className="text-xs text-gray-500 mt-1">
+                  Base: {formatMoney(calculations.implementationBase)} + Tiendas: {formatMoney(calculations.storeIntegrationCost)} + Features: {formatMoney(calculations.featureImplementationCost)}
+                </div>
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
-                <div className="flex justify-between"><span className="font-semibold">Suscripción VTEX/año:</span><span className="font-bold text-blue-600">{formatMoney(calculations.vtexAnnualSubscription)}</span></div>
+                <p className="text-xs text-gray-600 mb-1">Costo Operativo (Suscripción VTEX)</p>
+                <p className="text-xl font-bold text-blue-600">{formatMoney(calculations.costoOperativoAnual)}/año</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Ahorro en Equipo</p>
+                <p className="text-xl font-bold text-green-600">{formatMoney(calculations.teamSavings)}/año</p>
+                <div className="text-xs text-gray-500 mt-1">
+                  {calculations.internalTeamBefore}→{calculations.internalTeamAfter} FTE | {calculations.agencyHoursBefore}→{calculations.agencyHoursAfter} hrs/mes agencia
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Final Summary */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg shadow-xl p-6 md:p-8 text-white">
+        {/* Resumen Ejecutivo Final */}
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-xl shadow-xl p-6 md:p-8 text-white">
           <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center">Resumen Ejecutivo - {period} {period === 1 ? 'Año' : 'Años'}</h2>
           
           {/* Desglose Beneficios */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Desglose de Beneficios ({period} {period === 1 ? 'año' : 'años'})</h3>
+            <h3 className="text-lg font-semibold mb-3">Desglose de Beneficios</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div className="bg-white/20 rounded-lg p-3 text-center border border-yellow-400/50">
+              <div className="bg-white/20 rounded-lg p-3 text-center">
                 <p className="opacity-90 text-xs">Uplift (Margen {profitMargin}%)</p>
                 <p className="text-lg font-bold text-yellow-300">{formatMoney(calculations.totalProfitFromUplift)}</p>
               </div>
@@ -756,34 +853,28 @@ const MigrationROICalculator = () => {
                 <p className="text-lg font-bold">{formatMoney(calculations.featureGapSavings)}</p>
               </div>
             </div>
-          </div>
-
-          {/* Beneficio Total */}
-          <div className="mb-6 p-4 bg-white/10 rounded-lg">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Beneficio Total</h3>
-              <p className="text-3xl font-bold">{formatMoney(calculations.totalBenefits)}</p>
+            <div className="mt-3 p-3 bg-white/10 rounded-lg flex justify-between items-center">
+              <span className="font-semibold">Beneficio Total</span>
+              <span className="text-2xl font-bold">{formatMoney(calculations.totalBenefits)}</span>
             </div>
           </div>
 
           {/* Desglose Inversión */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Desglose de Inversión ({period} {period === 1 ? 'año' : 'años'})</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <h3 className="text-lg font-semibold mb-3">Desglose de Inversión</h3>
+            <div className="grid grid-cols-2 gap-3">
               <div className="bg-white/20 rounded-lg p-3">
-                <div className="flex justify-between"><span className="opacity-90">Inversión Migración</span><span className="font-bold">{formatMoney(calculations.migrationTotal)}</span></div>
-                <div className="text-xs opacity-70 mt-1">Setup inicial único</div>
+                <p className="opacity-90 text-xs">Inversión Setup (única)</p>
+                <p className="text-lg font-bold">{formatMoney(calculations.inversionSetup)}</p>
               </div>
               <div className="bg-white/20 rounded-lg p-3">
-                <div className="flex justify-between"><span className="opacity-90">Suscripción VTEX ({period}a)</span><span className="font-bold">{formatMoney(calculations.vtexAnnualSubscription * period)}</span></div>
-                <div className="text-xs opacity-70 mt-1">{formatMoney(calculations.vtexAnnualSubscription)}/año × {period}</div>
+                <p className="opacity-90 text-xs">Suscripción VTEX ({period}a)</p>
+                <p className="text-lg font-bold">{formatMoney(calculations.costoOperativoAnual * period)}</p>
               </div>
             </div>
-            <div className="mt-3 p-4 bg-white/30 rounded-lg">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">Inversión Total</h3>
-                <p className="text-3xl font-bold">{formatMoney(calculations.totalInvestment)}</p>
-              </div>
+            <div className="mt-3 p-3 bg-white/30 rounded-lg flex justify-between items-center">
+              <span className="font-semibold">Inversión Total</span>
+              <span className="text-2xl font-bold">{formatMoney(calculations.totalInvestment)}</span>
             </div>
           </div>
 
@@ -792,16 +883,76 @@ const MigrationROICalculator = () => {
             <p className="text-lg mb-2">Return on Investment (ROI) | Ingresos incrementados</p>
             <p className="text-5xl md:text-6xl font-bold">{calculations.roi}%</p>
             <p className="text-lg mt-4 opacity-90">
-              Por cada $1 invertido en la migración a VTEX, obtienes <span className="font-bold text-yellow-300">${calculations.roiMultiplier}</span> de beneficio extra
+              Por cada $1 invertido en la migración a VTEX, obtenés <span className="font-bold text-yellow-300">${calculations.roiMultiplier}</span> de beneficio extra
+            </p>
+            <p className="text-sm mt-2 opacity-70">
+              Payback: {calculations.paybackMonths} meses | Break-even: Mes {calculations.breakevenMonth || 'N/A'}
             </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mt-6 text-center">
-          <button className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">
-            Agendar Demo Ejecutiva
-          </button>
+        {/* COSTO DE OPORTUNIDAD - Banner de cierre */}
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl shadow-lg p-6 mt-6 text-white">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertTriangle className="w-8 h-8" />
+            <div>
+              <h3 className="text-xl font-bold">Costo de Oportunidad por NO migrar a VTEX</h3>
+              <p className="text-sm opacity-90">Cada día que pasa sin migrar, tu negocio deja de capturar este valor</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-white/20 rounded-lg p-4 text-center">
+              <p className="text-sm opacity-90 mb-1">Perdés por día</p>
+              <p className="text-3xl md:text-4xl font-bold">{formatMoney(calculations.dailyBenefitLost)}</p>
+            </div>
+            <div className="bg-white/20 rounded-lg p-4 text-center">
+              <p className="text-sm opacity-90 mb-1">Perdés por mes</p>
+              <p className="text-3xl md:text-4xl font-bold">{formatMoney(calculations.monthlyBenefitLost)}</p>
+            </div>
+          </div>
+          <p className="text-xs mt-4 opacity-80 text-center">* Beneficio neto que podrías estar generando si ya estuvieras operando en VTEX (Uplift + Ahorros - Costo VTEX)</p>
+        </div>
+
+        {/* Footer CTAs */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
+          <div className="text-center mb-4">
+            <h3 className="text-xl font-bold text-gray-800">¿Listo para transformar tu ecommerce?</h3>
+            <p className="text-gray-600 text-sm">Exportá este análisis para compartirlo con tu equipo directivo</p>
+          </div>
+          <div className="flex flex-col md:flex-row justify-center gap-4">
+            <button 
+              onClick={exportToPDF}
+              disabled={isExporting}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generando PDF...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  Exportar Análisis (PDF)
+                </>
+              )}
+            </button>
+            <a 
+              href={calendlyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-lg flex items-center justify-center gap-2"
+            >
+              <Calendar className="w-5 h-5" />
+              Agendar Demo Ejecutiva
+            </a>
+          </div>
+          <p className="text-center text-xs text-gray-500 mt-4">
+            Este análisis es una estimación basada en datos de mercado y benchmarks de industria.
+          </p>
         </div>
       </div>
     </div>
