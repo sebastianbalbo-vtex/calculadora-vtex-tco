@@ -314,39 +314,25 @@ const MigrationROICalculator = () => {
     const roiMultiplier = totalInvestment > 0 ? (beneficioIncremental / totalInvestment).toFixed(2) : 0;
     
     // PAYBACK CORREGIDO - Lógica clara
-    // 
-    // Durante implementación (meses 1 a N): 
-    //   - Seguís operando con plataforma actual (costo neutro)
-    //   - Pagás el setup de VTEX (inversión a recuperar)
-    //   - Beneficio de VTEX = $0 (todavía no estás live)
-    //
-    // Post go-live (mes N+1 en adelante):
-    //   - Apagás plataforma actual
-    //   - Beneficio = Uplift×Margen + Ahorro Equipo + Ahorro TCO + Feature Gap
-    //   - tcoSavingsAnnual ya incluye (costoActual - costoVTEX), así que suscripción VTEX ya está descontada
-    
     const monthlyUpliftProfit = (revenueUpliftYear1 * marginMultiplier) / 12;
     const monthlyTeamSavings = teamSavingsAnnual / 12;
-    const monthlyTcoSavings = tcoSavingsAnnual / 12; // Ya incluye la diferencia (Magento - VTEX)
+    const monthlyTcoSavings = tcoSavingsAnnual / 12;
     const monthlyFeatureGapSavings = featureGapSavings / 36;
     
-    // Beneficio mensual NETO post go-live (TCO ya descuenta suscripción VTEX)
+    // Beneficio mensual NETO post go-live
     const monthlyBenefitNet = monthlyUpliftProfit + monthlyTeamSavings + monthlyTcoSavings + monthlyFeatureGapSavings;
     
-    // Payback = meses de implementación (sin beneficio) + meses para recuperar setup
+    // Payback = meses de implementación + meses para recuperar setup
     const monthsToRecoverSetup = monthlyBenefitNet > 0 ? (inversionSetup / monthlyBenefitNet) : 999;
     const paybackMonths = monthlyBenefitNet > 0 
       ? (migrationMonths + monthsToRecoverSetup).toFixed(1) 
       : 'N/A';
     
-    // COSTO DE OPORTUNIDAD (beneficio perdido por no migrar)
-    // Es el beneficio mensual que podrías tener si ya estuvieras en VTEX
+    // COSTO DE OPORTUNIDAD
     const dailyBenefitLost = monthlyBenefitNet / 30;
     const monthlyBenefitLost = monthlyBenefitNet;
     
-    // CASHFLOW MENSUAL - Corregido
-    // Meses 1-N (implementación): Solo costos, beneficio = 0
-    // Mes N+1 en adelante: Beneficios activos
+    // CASHFLOW MENSUAL
     const cashflowData = [];
     let cumulative = 0;
     const monthsToShow = Math.max(period * 12, 24);
@@ -356,15 +342,11 @@ const MigrationROICalculator = () => {
       let monthBenefit = 0;
       
       if (m <= migrationMonths) {
-        // Durante implementación: solo costos
         if (m === 1) {
-          monthCost = inversionSetup; // Setup upfront en mes 1
+          monthCost = inversionSetup;
         }
-        // Durante implementación seguís pagando plataforma actual (costo neutro, no lo sumamos)
-        // No hay beneficio de VTEX todavía
         monthBenefit = 0;
       } else {
-        // Post go-live: beneficios activos
         const monthsOperating = m - migrationMonths;
         const yearOfOperation = Math.ceil(monthsOperating / 12);
         
@@ -373,9 +355,8 @@ const MigrationROICalculator = () => {
         else if (yearOfOperation === 2) upliftThisMonth = revenueUpliftYear2 / 12;
         else upliftThisMonth = revenueUpliftYear3 / 12;
         
-        // Beneficio mensual post go-live (TCO savings ya incluye la diferencia de costos)
         monthBenefit = (upliftThisMonth * marginMultiplier) + (teamSavingsAnnual / 12) + (tcoSavingsAnnual / 12) + (featureGapSavings / 36);
-        monthCost = 0; // Los costos de VTEX ya están descontados en tcoSavingsAnnual
+        monthCost = 0;
       }
       
       const netFlow = monthBenefit - monthCost;
@@ -419,233 +400,867 @@ const MigrationROICalculator = () => {
   const toggleFeature = (f) => setSelectedFeatures(prev => ({ ...prev, [f]: !prev[f] }));
   const selectedFeatureCount = Object.values(selectedFeatures).filter(Boolean).length;
 
-  // Función para exportar PDF profesional con justificación
-  const exportToPDF = async () => {
-    setIsExporting(true);
-    try {
-      // Cargar jsPDF
-      if (!window.jspdf) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        document.head.appendChild(script);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
-      
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = 210;
-      const margin = 15;
-      const contentWidth = pageWidth - (margin * 2);
-      let y = 15;
-      
-      // Colores
-      const blue = [30, 64, 175];
-      const green = [22, 163, 74];
-      const gray = [75, 85, 99];
-      const lightGray = [156, 163, 175];
-      
-      // Helper para texto
-      const addText = (text, x, yPos, size = 10, color = gray, style = 'normal') => {
-        doc.setFontSize(size);
-        doc.setTextColor(...color);
-        doc.setFont('helvetica', style);
-        doc.text(text, x, yPos);
-        return yPos + (size * 0.5);
-      };
-      
-      // Helper para líneas
-      const addLine = (yPos) => {
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        return yPos + 5;
-      };
-      
-      // ===== PÁGINA 1 =====
-      
-      // Header
-      doc.setFillColor(30, 64, 175);
-      doc.rect(0, 0, pageWidth, 35, 'F');
-      addText('ANÁLISIS DE ROI - MIGRACIÓN A VTEX', margin, 15, 18, [255, 255, 255], 'bold');
-      addText(`${platformNames[currentPlatform]} → VTEX | GMV: ${formatMoney(calculations.gmvUSD)} | Período: ${period} año${period > 1 ? 's' : ''}`, margin, 25, 10, [200, 210, 255]);
-      
-      y = 45;
-      
-      // Resumen Ejecutivo
-      addText('RESUMEN EJECUTIVO', margin, y, 14, blue, 'bold');
-      y += 10;
-      
-      // Métricas clave en boxes
-      const boxWidth = (contentWidth - 10) / 3;
-      const boxes = [
-        { label: 'ROI', value: `${calculations.roi}%`, color: green },
-        { label: 'Payback', value: `${calculations.paybackMonths} meses`, color: blue },
-        { label: 'Beneficio Neto', value: formatMoney(calculations.beneficioIncremental), color: green }
-      ];
-      
-      boxes.forEach((box, i) => {
-        const x = margin + (i * (boxWidth + 5));
-        doc.setFillColor(245, 247, 250);
-        doc.roundedRect(x, y, boxWidth, 20, 2, 2, 'F');
-        addText(box.label, x + 5, y + 7, 8, lightGray);
-        addText(box.value, x + 5, y + 15, 12, box.color, 'bold');
-      });
-      y += 30;
-      
-      // Desglose de beneficios
-      addText('DESGLOSE DE BENEFICIOS', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      const benefits = [
-        { label: `Uplift de Revenue (Margen ${profitMargin}%)`, value: calculations.totalProfitFromUplift, pct: `+${Math.round(calculations.upliftYear1Percent * 100)}% año 1` },
-        { label: 'Ahorro en Equipo Técnico', value: calculations.teamSavings * period, pct: `${calculations.internalTeamBefore}→${calculations.internalTeamAfter} FTE` },
-        { label: 'Ahorro en TCO', value: calculations.tcoSavings, pct: `-${calculations.tcoSavingsPercent}%` },
-        { label: 'Features Nativos (vs desarrollo)', value: calculations.featureGapSavings, pct: `${selectedFeatureCount} features` },
-      ];
-      
-      benefits.forEach(b => {
-        doc.setFillColor(250, 250, 250);
-        doc.rect(margin, y, contentWidth, 8, 'F');
-        addText(b.label, margin + 2, y + 5.5, 9, gray);
-        addText(formatMoney(b.value), margin + 120, y + 5.5, 9, green, 'bold');
-        addText(b.pct, margin + 155, y + 5.5, 8, lightGray);
-        y += 9;
-      });
-      
-      doc.setFillColor(220, 252, 231);
-      doc.rect(margin, y, contentWidth, 10, 'F');
-      addText('BENEFICIO TOTAL', margin + 2, y + 7, 10, gray, 'bold');
-      addText(formatMoney(calculations.totalBenefits), margin + 120, y + 7, 11, green, 'bold');
-      y += 18;
-      
-      // Inversión
-      addText('INVERSIÓN REQUERIDA', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText(`Setup de migración (único): ${formatMoney(calculations.inversionSetup)}`, margin + 2, y, 9, gray);
-      y += 6;
-      addText(`Suscripción VTEX (${period}a): ${formatMoney(calculations.costoOperativoAnual * period)}`, margin + 2, y, 9, gray);
-      y += 6;
-      addText(`Inversión Total: ${formatMoney(calculations.totalInvestment)}`, margin + 2, y, 10, blue, 'bold');
-      y += 12;
-      
-      y = addLine(y);
-      
-      // Justificación del Uplift
-      addText('JUSTIFICACIÓN DEL UPLIFT DE REVENUE', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText('El uplift se calcula considerando:', margin, y, 9, gray);
-      y += 6;
-      addText(`• Base por industria (${industry}): +${Math.round(calculations.baseUplift * 100)}% - Benchmark VTEX para el sector`, margin + 2, y, 8, gray);
-      y += 5;
-      addText(`• Bonus por features (${selectedFeatureCount} seleccionados): +${(calculations.featuresUpliftBonus * 100).toFixed(1)}% - Impacto acumulativo documentado`, margin + 2, y, 8, gray);
-      y += 5;
-      addText(`• Bonus omnicanal (${physicalStores} tiendas): +${(calculations.storesUpliftBonus * 100).toFixed(1)}% - Efecto de integración física-digital`, margin + 2, y, 8, gray);
-      y += 5;
-      addText(`• Descuento madurez actual: -${(calculations.maturityDiscount * 100).toFixed(0)}% - Valor ya capturado`, margin + 2, y, 8, gray);
-      y += 8;
-      addText(`Resultado: ${Math.round(calculations.upliftYear1Percent * 100)}% de uplift en año 1, decayendo a ${Math.round(calculations.upliftYear2Percent * 100)}% (año 2) y ${Math.round(calculations.upliftYear3Percent * 100)}% (año 3)`, margin, y, 9, gray, 'italic');
-      y += 12;
-      
-      // Justificación TCO
-      addText('JUSTIFICACIÓN DEL AHORRO EN TCO', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText(`VTEX es 100% SaaS, eliminando costos de: licencias perpetuas, hosting dedicado, parches de`, margin, y, 9, gray);
-      y += 5;
-      addText(`seguridad, actualizaciones de versión y escalabilidad manual. Comparativa anual:`, margin, y, 9, gray);
-      y += 7;
-      addText(`${platformNames[currentPlatform].split(' /')[0]}: ${formatMoney(calculations.currentPlatformAnnual)}/año`, margin + 5, y, 9, [220, 38, 38]);
-      y += 5;
-      addText(`VTEX: ${formatMoney(calculations.vtexAnnualTechOnly)}/año (suscripción + soporte)`, margin + 5, y, 9, green);
-      y += 5;
-      addText(`Ahorro: ${formatMoney(calculations.tcoSavingsAnnual)}/año (${calculations.tcoSavingsPercent}%)`, margin + 5, y, 9, green, 'bold');
-      y += 12;
-      
-      // ===== PÁGINA 2 =====
-      doc.addPage();
-      y = 15;
-      
-      // Justificación Equipo
-      addText('OPTIMIZACIÓN DE EQUIPO TÉCNICO', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText('La reducción de carga operativa permite reasignar recursos a tareas de mayor valor:', margin, y, 9, gray);
-      y += 7;
-      addText(`• Equipo interno: ${calculations.internalTeamBefore} → ${calculations.internalTeamAfter} FTE (${Math.round((1 - calculations.internalTeamAfter/calculations.internalTeamBefore) * 100)}% reducción)`, margin + 2, y, 9, gray);
-      y += 5;
-      addText(`• Horas agencia: ${calculations.agencyHoursBefore} → ${calculations.agencyHoursAfter} hrs/mes (${Math.round((1 - calculations.agencyHoursAfter/calculations.agencyHoursBefore) * 100)}% reducción)`, margin + 2, y, 9, gray);
-      y += 5;
-      addText(`• Ahorro anual: ${formatMoney(calculations.teamSavings)}`, margin + 2, y, 9, green, 'bold');
-      y += 12;
-      
-      // Timeline
-      addText('TIMELINE DE IMPLEMENTACIÓN', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText(`Duración estimada: ${calculations.migrationMonths} meses (tamaño: ${calculations.size})`, margin, y, 9, gray);
-      y += 6;
-      addText('Fases: Discovery (15%) → Setup & Dev (45%) → Testing (25%) → Go-Live (15%)', margin, y, 9, gray);
-      y += 12;
-      
-      // Comparativa de plataformas
-      addText(`COMPARATIVA: ${platformNames[currentPlatform].split(' /')[0].toUpperCase()} VS VTEX`, margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      addText(`Score ponderado: ${currentScore.toFixed(0)} vs ${vtexScore.toFixed(0)} (VTEX +${(vtexScore - currentScore).toFixed(0)} puntos)`, margin, y, 9, gray);
-      y += 6;
-      addText('Criterios evaluados: Omnicanalidad, LATAM Ready, TCO, Escalabilidad, Time-to-Market, Marketplace', margin, y, 8, lightGray);
-      y += 12;
-      
-      y = addLine(y);
-      
-      // Fuentes y referencias
-      addText('FUENTES Y REFERENCIAS', margin, y, 12, blue, 'bold');
-      y += 8;
-      
-      const sources = [
-        'VTEX Business Cases - https://vtex.com/ar-es/resources/ebooks/business-cases/',
-        'VTEX ROI de plataformas - https://vtex.com/ar-es/blog/estrategia/roi-de-una-plataforma-de-comercio-digital/',
-        'VTEX Intelligent Search - https://help.vtex.com/es/tracks/vtex-intelligent-search',
-        'VTEX Security & Compliance - https://vtex.com/ar-es/security/',
-        'Gartner Voice of Customer 2024 - VTEX reconocido como Customers\' Choice',
-      ];
-      
-      sources.forEach(s => {
-        addText(`• ${s}`, margin, y, 7, lightGray);
-        y += 4;
-      });
-      
-      y += 8;
-      
-      // Costo de oportunidad
-      doc.setFillColor(254, 226, 226);
-      doc.roundedRect(margin, y, contentWidth, 25, 2, 2, 'F');
-      addText('COSTO DE OPORTUNIDAD', margin + 5, y + 8, 10, [185, 28, 28], 'bold');
-      addText(`Cada día sin migrar, tu negocio deja de capturar ${formatMoney(calculations.dailyBenefitLost)}/día`, margin + 5, y + 15, 9, [185, 28, 28]);
-      addText(`(${formatMoney(calculations.monthlyBenefitLost)}/mes en beneficios no realizados)`, margin + 5, y + 21, 8, [185, 28, 28]);
-      y += 35;
-      
-      // Footer con contacto
-      doc.setFillColor(30, 41, 59);
-      doc.rect(0, 270, pageWidth, 27, 'F');
-      addText('Sebastián Balbo | Enterprise Account Executive @ VTEX', margin, 280, 9, [255, 255, 255], 'bold');
-      addText('linkedin.com/in/sebastian-balbo | calendly.com/sebastian-balbo/hablemos-de-vtex', margin, 286, 8, [148, 163, 184]);
-      addText('"El mejor momento para transformar tu negocio fue ayer. El segundo mejor momento es hoy."', margin, 292, 7, [148, 163, 184], 'italic');
-      
-      // Guardar
-      const fileName = `Analisis_ROI_VTEX_${platformNames[currentPlatform].split(' /')[0].replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(fileName);
-      
-    } catch (error) {
-      console.error('Error exportando PDF:', error);
-      alert('Error al generar PDF. Por favor intenta de nuevo.');
-    }
-    setIsExporting(false);
-  };
-
   // URL de Calendly
   const calendlyUrl = 'https://calendly.com/sebastian-balbo/hablemos-de-vtex';
+
+  // Función de exportación PDF - Análisis Ejecutivo Completo
+  const handleExportPDF = () => {
+    setIsExporting(true);
+    
+    const selectedFeaturesNames = Object.entries(selectedFeatures)
+      .filter(([_, v]) => v)
+      .map(([k]) => featureLabels[k]?.name || k);
+    
+    const selectedFeaturesDetails = Object.entries(selectedFeatures)
+      .filter(([_, v]) => v)
+      .map(([k]) => ({
+        key: k,
+        name: featureLabels[k]?.name || k,
+        uplift: featureLabels[k]?.uplift || 0
+      }))
+      .sort((a, b) => b.uplift - a.uplift);
+    
+    // Calcular contribuciones porcentuales de cada beneficio
+    const benefitContributions = {
+      revenueUplift: calculations.totalProfitFromUplift,
+      teamSavings: calculations.teamSavings * period,
+      tcoSavings: calculations.tcoSavings,
+      featureGap: calculations.featureGapSavings
+    };
+    
+    const totalBenefits = calculations.totalBenefits;
+    const sortedBenefits = Object.entries(benefitContributions)
+      .map(([key, value]) => ({ key, value, percentage: Math.round((value / totalBenefits) * 100) }))
+      .sort((a, b) => b.value - a.value);
+    
+    const primaryBenefit = sortedBenefits[0];
+    
+    // Casos de éxito por industria
+    const industryCases = {
+      fashion: [
+        { company: 'Grupo Soma (Farm, Animale)', country: 'Brasil', result: '+35% conversión móvil, 40% reducción time-to-market', source: 'VTEX Case Study 2023' },
+        { company: 'C&A Latinoamérica', country: 'Regional', result: 'Unificación de 17 países, +28% ventas online YoY', source: 'VTEX Enterprise Report' },
+        { company: 'Dafiti Group', country: 'LATAM', result: 'Marketplace con +2000 sellers, arquitectura headless', source: 'VTEX Commerce Platform' }
+      ],
+      retail: [
+        { company: 'Carrefour Brasil', country: 'Brasil', result: 'Integración O2O completa, +45% ordenes BOPIS', source: 'VTEX Grocery Report 2023' },
+        { company: 'Cencosud (Jumbo, Easy)', country: 'Chile/Argentina', result: 'Omnicanalidad en 6 meses, +52% NPS digital', source: 'VTEX Retail Excellence' },
+        { company: 'Liverpool México', country: 'México', result: 'Click & Collect en 100+ tiendas, +38% ticket promedio', source: 'VTEX Enterprise' }
+      ],
+      electronics: [
+        { company: 'Samsung LATAM', country: 'Regional', result: 'D2C unificado en 8 países, +25% margen vs distribuidores', source: 'VTEX D2C Report' },
+        { company: 'Sony Store Brasil', country: 'Brasil', result: 'Experiencia premium, +42% conversión con personalización', source: 'VTEX Case Study' },
+        { company: 'Motorola Argentina', country: 'Argentina', result: 'Lanzamientos en 72hrs, integración con carriers', source: 'VTEX Electronics' }
+      ],
+      food: [
+        { company: 'Nestlé D2C', country: 'Brasil', result: 'Suscripciones +200% YoY, CAC reducido 35%', source: 'VTEX CPG Report' },
+        { company: 'AB InBev (Zé Delivery)', country: 'Brasil', result: '+10M pedidos/mes, delivery en 30min', source: 'VTEX Marketplace Study' },
+        { company: 'Arcor', country: 'Argentina', result: 'B2B2C integrado, +60% penetración digital', source: 'VTEX Food & Beverage' }
+      ],
+      beauty: [
+        { company: "L'Oréal LATAM", country: 'Regional', result: 'Plataforma unificada 12 marcas, +48% engagement', source: 'VTEX Beauty Report' },
+        { company: 'Natura &Co', country: 'Brasil', result: 'Social selling integrado, +1M consultoras digitales', source: 'VTEX Social Commerce' },
+        { company: 'Sephora México', country: 'México', result: 'Omnichannel loyalty, +55% retention rate', source: 'VTEX Retail Excellence' }
+      ],
+      b2b: [
+        { company: 'Votorantim Cimentos', country: 'Brasil', result: 'Portal B2B, +70% pedidos self-service', source: 'VTEX B2B Report 2023' },
+        { company: 'Whirlpool', country: 'Regional', result: 'B2B + B2C unificado, -40% costo de servicio', source: 'VTEX Manufacturing' },
+        { company: 'Stanley Black & Decker', country: 'LATAM', result: 'Distribuidores digitalizados, +85% adopción', source: 'VTEX B2B Case Study' }
+      ]
+    };
+    
+    // Comparación detallada de plataformas
+    const platformDetails = {
+      magento: {
+        name: 'Adobe Commerce (Magento)',
+        weaknesses: [
+          'Alta complejidad técnica requiere equipo especializado costoso',
+          'Actualizaciones de versión complejas y riesgosas (promedio 3-6 meses)',
+          'Performance degradada sin optimización continua',
+          'Costo de hosting y mantenimiento escalable',
+          'Integraciones LATAM requieren desarrollo custom extensivo'
+        ],
+        vtexAdvantages: [
+          'SaaS nativo elimina gestión de infraestructura',
+          'Actualizaciones automáticas sin downtime',
+          'Performance optimizada out-of-the-box',
+          'Pricing basado en GMV, predecible y escalable',
+          'Integraciones LATAM nativas (medios de pago, logística, fiscal)'
+        ],
+        migrationComplexity: 'Media-Alta',
+        typicalTimeframe: '4-6 meses'
+      },
+      vtexlegacy: {
+        name: 'VTEX Legacy (Portal/CMS)',
+        weaknesses: [
+          'Arquitectura monolítica limita flexibilidad',
+          'Frontend acoplado dificulta personalización',
+          'APIs limitadas para integraciones modernas',
+          'No soporta arquitectura headless/composable',
+          'Menor performance en escenarios de alto tráfico'
+        ],
+        vtexAdvantages: [
+          'VTEX IO con arquitectura de microservicios',
+          'Store Framework para desarrollo ágil',
+          'FastStore para headless commerce',
+          'APIs GraphQL modernas y documentadas',
+          'Edge computing para máxima performance'
+        ],
+        migrationComplexity: 'Media',
+        typicalTimeframe: '3-4 meses'
+      },
+      salesforce: {
+        name: 'Salesforce Commerce Cloud',
+        weaknesses: [
+          'Costos de licenciamiento significativamente mayores',
+          'Dependencia del ecosistema Salesforce completo',
+          'Implementaciones típicamente más largas',
+          'Menor flexibilidad en customizaciones',
+          'Soporte regional LATAM limitado'
+        ],
+        vtexAdvantages: [
+          'TCO 30-50% menor en promedio',
+          'Plataforma independiente y abierta',
+          'Time-to-market más rápido',
+          'Mayor flexibilidad con VTEX IO',
+          'Equipo y soporte local en LATAM'
+        ],
+        migrationComplexity: 'Alta',
+        typicalTimeframe: '5-8 meses'
+      },
+      shopify: {
+        name: 'Shopify / Shopify Plus',
+        weaknesses: [
+          'Limitaciones en B2B y escenarios complejos',
+          'Checkout customization restringido',
+          'Multi-país y multi-moneda limitado',
+          'Marketplace nativo no disponible',
+          'Integraciones fiscales LATAM requieren apps terceros'
+        ],
+        vtexAdvantages: [
+          'B2B nativo con precios por cliente/segmento',
+          'Checkout 100% customizable',
+          'Multi-tenant nativo para operaciones regionales',
+          'Marketplace integrado out-of-the-box',
+          'Compliance fiscal LATAM nativo'
+        ],
+        migrationComplexity: 'Media',
+        typicalTimeframe: '3-5 meses'
+      },
+      woocommerce: {
+        name: 'WooCommerce',
+        weaknesses: [
+          'No diseñado para alto volumen transaccional',
+          'Seguridad dependiente de actualizaciones WordPress',
+          'Performance limitada sin hosting enterprise',
+          'Requiere múltiples plugins para funcionalidad básica',
+          'Sin soporte enterprise ni SLAs garantizados'
+        ],
+        vtexAdvantages: [
+          'Arquitectura enterprise para cualquier escala',
+          'Seguridad y compliance gestionados',
+          'Performance garantizada con SLAs',
+          'Funcionalidad completa sin plugins externos',
+          'Soporte enterprise 24/7'
+        ],
+        migrationComplexity: 'Media',
+        typicalTimeframe: '3-4 meses'
+      },
+      oracle: {
+        name: 'Oracle Commerce',
+        weaknesses: [
+          'Complejidad extrema de implementación',
+          'Costos de licenciamiento muy elevados',
+          'Ecosistema cerrado y propietario',
+          'Ciclos de actualización lentos',
+          'Talento especializado escaso y costoso'
+        ],
+        vtexAdvantages: [
+          'Implementación ágil y predecible',
+          'Modelo de pricing transparente',
+          'Ecosistema abierto con +800 partners',
+          'Innovación continua con releases frecuentes',
+          'Amplia comunidad de desarrolladores'
+        ],
+        migrationComplexity: 'Alta',
+        typicalTimeframe: '6-9 meses'
+      },
+      custom: {
+        name: 'Plataforma Custom / In-house',
+        weaknesses: [
+          'Deuda técnica acumulada dificulta evolución',
+          'Dependencia de conocimiento interno',
+          'Costo de mantenimiento creciente',
+          'Dificultad para incorporar nuevas funcionalidades',
+          'Riesgo de obsolescencia tecnológica'
+        ],
+        vtexAdvantages: [
+          'Plataforma siempre actualizada',
+          'Comunidad y ecosistema de soporte',
+          'Roadmap de producto continuo',
+          'Nuevas funcionalidades sin desarrollo custom',
+          'Estándares de industria garantizados'
+        ],
+        migrationComplexity: 'Variable',
+        typicalTimeframe: '4-8 meses'
+      }
+    };
+    
+    const currentPlatformDetails = platformDetails[currentPlatform] || platformDetails.custom;
+    const relevantCases = industryCases[industry] || industryCases.retail;
+    
+    // Generar argumentación según el beneficio principal
+    const benefitArgumentation = {
+      revenueUplift: `
+        <h3>Revenue Uplift como Driver Principal del ROI</h3>
+        <p>El análisis identifica el <strong>incremento en ingresos</strong> como el factor de mayor impacto en el retorno de inversión, representando el <strong>${primaryBenefit.percentage}%</strong> del beneficio total proyectado.</p>
+        
+        <h4>Metodología de Cálculo del Uplift</h4>
+        <p>El uplift proyectado de <strong>${calculations.revenueUpliftPercentage}%</strong> se calcula considerando múltiples factores:</p>
+        <ul>
+          <li><strong>Base por industria (${industry}):</strong> Los benchmarks de VTEX para la industria ${industry} muestran un uplift base de ${industryData[industry]?.baseUplift || 18}-${(industryData[industry]?.baseUplift || 18) + 6}% en el primer año post-migración.</li>
+          <li><strong>Features seleccionados:</strong> Cada funcionalidad habilitada contribuye incrementalmente al uplift. ${selectedFeaturesDetails.length > 0 ? `Los features de mayor impacto en tu selección son: ${selectedFeaturesDetails.slice(0, 3).map(f => f.name + ' (+' + f.uplift + '%)').join(', ')}.` : ''}</li>
+          <li><strong>Integración omnicanal:</strong> Con ${physicalStores} tiendas físicas, la integración O2O aporta un incremento adicional significativo basado en casos similares.</li>
+          <li><strong>Madurez digital:</strong> El ajuste por años de operación considera la curva de aprendizaje y optimización progresiva.</li>
+        </ul>
+        
+        <h4>Validación con Casos Reales</h4>
+        <p>Empresas similares en la industria ${industry} han reportado resultados consistentes con estas proyecciones:</p>
+      `,
+      teamSavings: `
+        <h3>Optimización de Recursos como Driver Principal del ROI</h3>
+        <p>El análisis identifica el <strong>ahorro en equipo técnico y operativo</strong> como el factor de mayor impacto, representando el <strong>${primaryBenefit.percentage}%</strong> del beneficio total proyectado.</p>
+        
+        <h4>Metodología de Cálculo</h4>
+        <p>La reducción de recursos se basa en el modelo SaaS de VTEX que elimina cargas operativas:</p>
+        <ul>
+          <li><strong>Reducción de FTEs:</strong> De ${fteCount} FTEs actuales, se proyecta una reducción del ${currentPlatform === 'custom' || currentPlatform === 'magento' ? '50%' : '30%'} basado en benchmarks de migraciones similares.</li>
+          <li><strong>Horas de agencia:</strong> De ${agencyHours} hrs/mes actuales, se estima reducción de ${currentPlatform === 'custom' ? '70%' : '50%'} por menor mantenimiento requerido.</li>
+          <li><strong>Eliminación de tareas:</strong> Gestión de infraestructura, parches de seguridad, actualizaciones de versión, y optimización de performance son absorbidas por VTEX.</li>
+        </ul>
+        
+        <h4>Factores que Soportan esta Proyección</h4>
+        <p>La plataforma actual (${platformNames[currentPlatform]}) tiene características que demandan recursos significativos:</p>
+        <ul>
+          ${currentPlatformDetails.weaknesses.slice(0, 3).map(w => `<li>${w}</li>`).join('')}
+        </ul>
+      `,
+      tcoSavings: `
+        <h3>Reducción de TCO como Driver Principal del ROI</h3>
+        <p>El análisis identifica la <strong>reducción del Costo Total de Propiedad</strong> como el factor de mayor impacto, representando el <strong>${primaryBenefit.percentage}%</strong> del beneficio total proyectado.</p>
+        
+        <h4>Componentes del TCO Actual vs VTEX</h4>
+        <p>El ahorro proyectado de <strong>${formatMoney(calculations.tcoSavings)}</strong> en ${period} años se fundamenta en:</p>
+        <ul>
+          <li><strong>Hosting/Infraestructura:</strong> ${currentPlatform === 'magento' || currentPlatform === 'woocommerce' || currentPlatform === 'custom' ? 'Eliminación completa de costos de hosting, CDN, y escalamiento' : 'Consolidación en modelo SaaS'}</li>
+          <li><strong>Licenciamiento:</strong> ${currentPlatform === 'salesforce' || currentPlatform === 'oracle' ? 'Reducción significativa vs modelo de licencias enterprise' : 'Modelo predictivo basado en GMV'}</li>
+          <li><strong>Mantenimiento:</strong> Actualizaciones, parches y evolución incluidos en la suscripción</li>
+          <li><strong>Seguridad y Compliance:</strong> PCI-DSS, LGPD/GDPR incluidos sin costo adicional</li>
+        </ul>
+        
+        <h4>Benchmark de Mercado</h4>
+        <p>Según datos de Forrester y Gartner, las migraciones a plataformas SaaS de comercio electrónico típicamente generan:</p>
+        <ul>
+          <li>Reducción de 25-40% en TCO a 3 años</li>
+          <li>Eliminación del 60-80% del esfuerzo de mantenimiento</li>
+          <li>ROI positivo entre 12-18 meses post go-live</li>
+        </ul>
+      `,
+      featureGap: `
+        <h3>Cierre de Brechas Funcionales como Driver Principal del ROI</h3>
+        <p>El análisis identifica el <strong>ahorro por funcionalidades nativas</strong> como el factor de mayor impacto, representando el <strong>${primaryBenefit.percentage}%</strong> del beneficio total proyectado.</p>
+        
+        <h4>Features que Generan Mayor Impacto</h4>
+        <p>La selección de ${selectedFeaturesDetails.length} funcionalidades representa un ahorro de <strong>${formatMoney(calculations.featureGapSavings)}</strong> vs desarrollo custom:</p>
+        <ul>
+          ${selectedFeaturesDetails.map(f => `<li><strong>${f.name}:</strong> Incluido nativamente en VTEX, costo de desarrollo alternativo estimado en mercado: $${((featureLabels[f.key]?.implementationCost || 25000) * 0.5).toLocaleString()} - $${(featureLabels[f.key]?.implementationCost || 25000).toLocaleString()}</li>`).join('')}
+        </ul>
+        
+        <h4>Costo de Oportunidad del Desarrollo Custom</h4>
+        <p>Desarrollar estas funcionalidades internamente o con terceros implicaría:</p>
+        <ul>
+          <li><strong>Time-to-market:</strong> 6-18 meses adicionales vs disponibilidad inmediata</li>
+          <li><strong>Riesgo técnico:</strong> Integración, testing, y estabilización</li>
+          <li><strong>Mantenimiento continuo:</strong> 20-30% del costo inicial anualmente</li>
+          <li><strong>Costo de oportunidad:</strong> Recursos dedicados a build vs innovación</li>
+        </ul>
+      `
+    };
+    
+    const primaryArgumentation = benefitArgumentation[primaryBenefit.key] || benefitArgumentation.revenueUplift;
+    
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Análisis Ejecutivo ROI - Migración a VTEX | ${new Date().toLocaleDateString('es-AR')}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      padding: 40px; 
+      max-width: 1000px; 
+      margin: 0 auto; 
+      color: #1a1a1a; 
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .cover { 
+      background: linear-gradient(135deg, #e91e63 0%, #9c27b0 100%); 
+      color: white; 
+      padding: 50px 40px; 
+      border-radius: 16px; 
+      margin-bottom: 40px;
+      text-align: center;
+    }
+    .cover h1 { font-size: 32px; margin-bottom: 12px; font-weight: 700; }
+    .cover .subtitle { font-size: 18px; opacity: 0.95; margin-bottom: 24px; }
+    .cover .meta { font-size: 13px; opacity: 0.85; }
+    .cover .meta span { margin: 0 15px; }
+    
+    .executive-summary {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    .executive-summary h2 { font-size: 20px; margin-bottom: 16px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px; }
+    .executive-summary p { margin-bottom: 12px; line-height: 1.7; }
+    
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border: 1px solid #e5e7eb;
+    }
+    .kpi-card .label { font-size: 12px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-card .value { font-size: 28px; font-weight: 700; color: #1e293b; }
+    .kpi-card .value.positive { color: #059669; }
+    .kpi-card .value.highlight { color: #e91e63; }
+    .kpi-card .subtext { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+    
+    .section { 
+      background: #ffffff; 
+      border-radius: 12px; 
+      padding: 28px; 
+      margin-bottom: 24px; 
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .section h2 { 
+      font-size: 18px; 
+      color: #1e293b; 
+      margin-bottom: 20px; 
+      padding-bottom: 12px; 
+      border-bottom: 3px solid #e91e63;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section h3 { font-size: 16px; color: #374151; margin: 20px 0 12px 0; }
+    .section h4 { font-size: 14px; color: #4b5563; margin: 16px 0 10px 0; }
+    .section p { margin-bottom: 12px; color: #4b5563; }
+    .section ul { margin: 12px 0 12px 24px; color: #4b5563; }
+    .section ul li { margin-bottom: 8px; }
+    
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .config-item {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #e91e63;
+    }
+    .config-item .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+    .config-item .value { font-size: 18px; font-weight: 600; color: #1e293b; margin-top: 4px; }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    .comparison-table th, .comparison-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .comparison-table th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #374151;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .comparison-table tr:hover { background: #f8fafc; }
+    .comparison-table .positive { color: #059669; font-weight: 600; }
+    .comparison-table .negative { color: #dc2626; }
+    
+    .case-study {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 16px 0;
+      border-left: 4px solid #22c55e;
+    }
+    .case-study .company { font-weight: 700; color: #166534; font-size: 15px; }
+    .case-study .country { font-size: 12px; color: #4ade80; margin-left: 8px; }
+    .case-study .result { margin: 8px 0; color: #15803d; }
+    .case-study .source { font-size: 11px; color: #86efac; font-style: italic; }
+    
+    .platform-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .platform-box {
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .platform-box.current {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+    .platform-box.vtex {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    .platform-box h4 { margin-bottom: 12px; }
+    .platform-box ul { margin-left: 16px; font-size: 13px; }
+    .platform-box ul li { margin-bottom: 6px; }
+    
+    .benefit-breakdown {
+      background: #fafafa;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    .benefit-bar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .benefit-bar .label { width: 180px; font-size: 13px; color: #4b5563; }
+    .benefit-bar .bar-container { flex: 1; height: 24px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 0 12px; }
+    .benefit-bar .bar { height: 100%; background: linear-gradient(90deg, #e91e63, #9c27b0); border-radius: 4px; }
+    .benefit-bar .value { width: 100px; text-align: right; font-weight: 600; font-size: 13px; }
+    
+    .opportunity-cost {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      border-left: 5px solid #f59e0b;
+    }
+    .opportunity-cost h3 { color: #92400e; margin-bottom: 12px; }
+    .opportunity-cost .values { display: flex; gap: 30px; margin-top: 16px; }
+    .opportunity-cost .value-box { text-align: center; }
+    .opportunity-cost .value-label { font-size: 12px; color: #a16207; }
+    .opportunity-cost .value-number { font-size: 32px; font-weight: 700; color: #92400e; }
+    
+    .cta-box {
+      background: linear-gradient(135deg, #e91e63 0%, #9c27b0 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .cta-box h3 { font-size: 22px; margin-bottom: 12px; }
+    .cta-box p { opacity: 0.9; margin-bottom: 20px; }
+    .cta-box a {
+      display: inline-block;
+      background: white;
+      color: #e91e63;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+    .cta-box a:hover { transform: scale(1.05); }
+    
+    .disclaimer {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 30px;
+      border: 1px solid #cbd5e1;
+    }
+    .disclaimer h4 { color: #475569; font-size: 13px; margin-bottom: 10px; }
+    .disclaimer p { font-size: 11px; color: #64748b; line-height: 1.6; }
+    
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 2px solid #e5e7eb;
+    }
+    .footer .contact { font-size: 14px; color: #374151; margin-bottom: 8px; }
+    .footer .contact strong { color: #1e293b; }
+    
+    @media print {
+      body { padding: 20px; font-size: 12px; }
+      .section { page-break-inside: avoid; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <!-- PORTADA -->
+  <div class="cover">
+    <h1>Análisis Ejecutivo de ROI</h1>
+    <p class="subtitle">Migración a VTEX Commerce Platform</p>
+    <div class="meta">
+      <span>📅 ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      <span>📊 Período: ${period} ${period === 1 ? 'año' : 'años'}</span>
+      <span>🏢 Industria: ${industry.charAt(0).toUpperCase() + industry.slice(1)}</span>
+    </div>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <div class="executive-summary">
+    <h2>📋 Resumen Ejecutivo</h2>
+    <p>Este análisis evalúa el retorno de inversión proyectado para la migración desde <strong>${platformNames[currentPlatform]}</strong> hacia <strong>VTEX Commerce Platform</strong>, considerando un GMV anual de <strong>${formatMoney(gmv * 1000000)}</strong> y un horizonte de <strong>${period} ${period === 1 ? 'año' : 'años'}</strong>.</p>
+    <p>Basado en benchmarks de industria, casos de éxito comparables y la configuración específica del negocio, se proyecta un <strong>ROI del ${calculations.roi}%</strong>, con recuperación de la inversión en <strong>${calculations.paybackMonths} meses</strong> y beneficio neto acumulado de <strong>${formatMoney(calculations.beneficioIncremental)}</strong>.</p>
+    <p>El principal driver del retorno es <strong>${primaryBenefit.key === 'revenueUplift' ? 'el incremento en ingresos' : primaryBenefit.key === 'teamSavings' ? 'la optimización de recursos' : primaryBenefit.key === 'tcoSavings' ? 'la reducción del TCO' : 'el cierre de brechas funcionales'}</strong>, representando el ${primaryBenefit.percentage}% del beneficio total proyectado.</p>
+  </div>
+
+  <!-- KPIs PRINCIPALES -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">ROI Proyectado</div>
+      <div class="value highlight">${calculations.roi}%</div>
+      <div class="subtext">En ${period} ${period === 1 ? 'año' : 'años'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Beneficio Neto</div>
+      <div class="value positive">${formatMoney(calculations.beneficioIncremental)}</div>
+      <div class="subtext">Acumulado</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Payback</div>
+      <div class="value">${calculations.paybackMonths} meses</div>
+      <div class="subtext">Recuperación inversión</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Multiplicador</div>
+      <div class="value positive">${calculations.roiMultiplier}x</div>
+      <div class="subtext">Por cada $1 invertido</div>
+    </div>
+  </div>
+
+  <!-- CONFIGURACIÓN DEL ANÁLISIS -->
+  <div class="section">
+    <h2>⚙️ Parámetros del Análisis</h2>
+    <div class="config-grid">
+      <div class="config-item">
+        <div class="label">Plataforma Actual</div>
+        <div class="value">${platformNames[currentPlatform]}</div>
+      </div>
+      <div class="config-item">
+        <div class="label">GMV Anual</div>
+        <div class="value">${formatMoney(gmv * 1000000)}</div>
+      </div>
+      <div class="config-item">
+        <div class="label">Margen de Beneficio</div>
+        <div class="value">${profitMargin}%</div>
+      </div>
+      <div class="config-item">
+        <div class="label">Industria</div>
+        <div class="value">${industry.charAt(0).toUpperCase() + industry.slice(1)}</div>
+      </div>
+      <div class="config-item">
+        <div class="label">Equipo Técnico</div>
+        <div class="value">${fteCount} FTEs + ${agencyHours} hrs agencia/mes</div>
+      </div>
+      <div class="config-item">
+        <div class="label">Tiendas Físicas</div>
+        <div class="value">${physicalStores} tiendas</div>
+      </div>
+    </div>
+    <div style="margin-top: 20px;">
+      <div class="label" style="font-size: 11px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Features Seleccionados (${selectedFeaturesNames.length}/12)</div>
+      <p style="font-size: 13px; color: #4b5563; line-height: 1.6;">${selectedFeaturesNames.join(' • ')}</p>
+    </div>
+  </div>
+
+  <!-- ARGUMENTACIÓN PRINCIPAL -->
+  <div class="section">
+    <h2>📊 Análisis de Impacto Principal</h2>
+    ${primaryArgumentation}
+    
+    <div style="margin-top: 24px;">
+      ${relevantCases.map(c => `
+        <div class="case-study">
+          <span class="company">${c.company}</span>
+          <span class="country">${c.country}</span>
+          <p class="result">${c.result}</p>
+          <p class="source">Fuente: ${c.source}</p>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <!-- DESGLOSE DE BENEFICIOS -->
+  <div class="section">
+    <h2>💰 Desglose de Beneficios Proyectados</h2>
+    <p>El beneficio total de <strong>${formatMoney(calculations.totalBenefits)}</strong> se compone de las siguientes fuentes:</p>
+    
+    <div class="benefit-breakdown">
+      ${sortedBenefits.map(b => `
+        <div class="benefit-bar">
+          <span class="label">${b.key === 'revenueUplift' ? 'Revenue Uplift' : b.key === 'teamSavings' ? 'Ahorro Equipo' : b.key === 'tcoSavings' ? 'Ahorro TCO' : 'Feature Gap'}</span>
+          <div class="bar-container">
+            <div class="bar" style="width: ${b.percentage}%"></div>
+          </div>
+          <span class="value">${formatMoney(b.value)} (${b.percentage}%)</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <table class="comparison-table">
+      <tr>
+        <th>Concepto</th>
+        <th>Monto Proyectado</th>
+        <th>% del Total</th>
+        <th>Base de Cálculo</th>
+      </tr>
+      <tr>
+        <td>Revenue Uplift (Margen ${profitMargin}%)</td>
+        <td class="positive">${formatMoney(calculations.totalProfitFromUplift)}</td>
+        <td>${Math.round((calculations.totalProfitFromUplift / calculations.totalBenefits) * 100)}%</td>
+        <td>GMV × Uplift ${calculations.revenueUpliftPercentage}% × Margen</td>
+      </tr>
+      <tr>
+        <td>Ahorro en Equipo Técnico</td>
+        <td class="positive">${formatMoney(calculations.teamSavings * period)}</td>
+        <td>${Math.round((calculations.teamSavings * period / calculations.totalBenefits) * 100)}%</td>
+        <td>Reducción FTEs + Horas agencia</td>
+      </tr>
+      <tr>
+        <td>Ahorro TCO</td>
+        <td class="positive">${formatMoney(calculations.tcoSavings)}</td>
+        <td>${Math.round((calculations.tcoSavings / calculations.totalBenefits) * 100)}%</td>
+        <td>Hosting + Licencias + Mantenimiento</td>
+      </tr>
+      <tr>
+        <td>Ahorro Feature Gap</td>
+        <td class="positive">${formatMoney(calculations.featureGapSavings)}</td>
+        <td>${Math.round((calculations.featureGapSavings / calculations.totalBenefits) * 100)}%</td>
+        <td>Costo dev alternativo evitado</td>
+      </tr>
+      <tr style="background: #f0fdf4; font-weight: 600;">
+        <td>TOTAL BENEFICIOS</td>
+        <td class="positive">${formatMoney(calculations.totalBenefits)}</td>
+        <td>100%</td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- COMPARATIVO DE PLATAFORMAS -->
+  <div class="section">
+    <h2>🔄 Comparativo: ${platformNames[currentPlatform]} vs VTEX</h2>
+    <p>El análisis considera las características específicas de ${platformNames[currentPlatform]} y cómo VTEX resuelve las limitaciones identificadas:</p>
+    
+    <div class="platform-comparison">
+      <div class="platform-box current">
+        <h4 style="color: #dc2626;">❌ Limitaciones de ${platformNames[currentPlatform]}</h4>
+        <ul>
+          ${currentPlatformDetails.weaknesses.map(w => `<li>${w}</li>`).join('')}
+        </ul>
+      </div>
+      <div class="platform-box vtex">
+        <h4 style="color: #16a34a;">✓ Ventajas de VTEX</h4>
+        <ul>
+          ${currentPlatformDetails.vtexAdvantages.map(a => `<li>${a}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+    
+    <table class="comparison-table">
+      <tr>
+        <th>Criterio</th>
+        <th>${platformNames[currentPlatform]}</th>
+        <th>VTEX</th>
+      </tr>
+      <tr>
+        <td>Complejidad de Migración</td>
+        <td>${currentPlatformDetails.migrationComplexity}</td>
+        <td>N/A (destino)</td>
+      </tr>
+      <tr>
+        <td>Timeframe Típico</td>
+        <td>${currentPlatformDetails.typicalTimeframe}</td>
+        <td>Go-live en ${calculations.migrationMonths} meses estimados</td>
+      </tr>
+      <tr>
+        <td>Modelo de Costo</td>
+        <td>${currentPlatform === 'magento' || currentPlatform === 'woocommerce' || currentPlatform === 'custom' ? 'CapEx + OpEx variable' : 'Licencia + Servicios'}</td>
+        <td>SaaS basado en GMV (predecible)</td>
+      </tr>
+      <tr>
+        <td>Soporte LATAM</td>
+        <td>${currentPlatform === 'salesforce' || currentPlatform === 'oracle' ? 'Limitado / Partners' : currentPlatform === 'shopify' ? 'Básico' : 'Comunidad'}</td>
+        <td>Nativo + Ecosistema local</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ANÁLISIS DE FEATURES -->
+  <div class="section">
+    <h2>🔧 Análisis de Features Seleccionados</h2>
+    <p>Se seleccionaron <strong>${selectedFeaturesDetails.length} funcionalidades</strong> que contribuyen al uplift proyectado y representan capacidades nativas de VTEX:</p>
+    
+    <table class="comparison-table">
+      <tr>
+        <th>Feature</th>
+        <th>Contribución al Uplift</th>
+        <th>Costo Implementación Alternativa</th>
+        <th>Estado en VTEX</th>
+      </tr>
+      ${selectedFeaturesDetails.map(f => `
+        <tr>
+          <td><strong>${f.name}</strong></td>
+          <td class="positive">+${f.uplift}%</td>
+          <td>${formatMoney(featureLabels[f.key]?.implementationCost || 25000)}</td>
+          <td>✓ Nativo</td>
+        </tr>
+      `).join('')}
+      <tr style="background: #f0fdf4; font-weight: 600;">
+        <td>Total Contribución Features</td>
+        <td class="positive">+${selectedFeaturesDetails.reduce((sum, f) => sum + f.uplift, 0)}%</td>
+        <td>${formatMoney(selectedFeaturesDetails.reduce((sum, f) => sum + (featureLabels[f.key]?.implementationCost || 25000), 0))}</td>
+        <td>Incluido en licencia</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- DESGLOSE DE INVERSIÓN -->
+  <div class="section">
+    <h2>💵 Desglose de Inversión Requerida</h2>
+    <table class="comparison-table">
+      <tr>
+        <th>Concepto</th>
+        <th>Monto</th>
+        <th>Tipo</th>
+        <th>Notas</th>
+      </tr>
+      <tr>
+        <td>Implementación Base</td>
+        <td>${formatMoney(calculations.implementationBase)}</td>
+        <td>Único</td>
+        <td>Setup, migración de datos, integraciones core</td>
+      </tr>
+      <tr>
+        <td>Integración Tiendas (${physicalStores})</td>
+        <td>${formatMoney(calculations.storeIntegrationCost)}</td>
+        <td>Único</td>
+        <td>POS, inventario, fulfillment omnicanal</td>
+      </tr>
+      <tr>
+        <td>Features Adicionales</td>
+        <td>${formatMoney(calculations.featureImplementationCost)}</td>
+        <td>Único</td>
+        <td>Customizaciones y configuraciones</td>
+      </tr>
+      <tr style="background: #fef3c7;">
+        <td><strong>Total Setup (inversión inicial)</strong></td>
+        <td><strong>${formatMoney(calculations.inversionSetup)}</strong></td>
+        <td>Único</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Suscripción VTEX</td>
+        <td>${formatMoney(calculations.costoOperativoAnual)}/año</td>
+        <td>Recurrente</td>
+        <td>Basado en GMV, incluye soporte y actualizaciones</td>
+      </tr>
+      <tr style="background: #f1f5f9; font-weight: 600;">
+        <td>INVERSIÓN TOTAL (${period} ${period === 1 ? 'año' : 'años'})</td>
+        <td>${formatMoney(calculations.totalInvestment)}</td>
+        <td></td>
+        <td>Setup + Suscripción período completo</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- COSTO DE OPORTUNIDAD -->
+  <div class="opportunity-cost">
+    <h3>⚠️ Costo de Oportunidad: Cada día cuenta</h3>
+    <p style="color: #92400e; margin-bottom: 16px;">Mientras se posterga la decisión, el negocio deja de capturar los beneficios proyectados:</p>
+    <div class="values">
+      <div class="value-box">
+        <div class="value-label">Pérdida estimada por día</div>
+        <div class="value-number">${formatMoney(calculations.dailyBenefitLost)}</div>
+      </div>
+      <div class="value-box">
+        <div class="value-label">Pérdida estimada por mes</div>
+        <div class="value-number">${formatMoney(calculations.monthlyBenefitLost)}</div>
+      </div>
+      <div class="value-box">
+        <div class="value-label">Pérdida potencial 6 meses</div>
+        <div class="value-number">${formatMoney(calculations.monthlyBenefitLost * 6)}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-box">
+    <h3>¿Listo para dar el siguiente paso?</h3>
+    <p>Agenda una demo ejecutiva para profundizar en este análisis y explorar un roadmap personalizado para tu negocio.</p>
+    <a href="${calendlyUrl}">📅 Agendar Demo Ejecutiva</a>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="disclaimer">
+    <h4>📋 Disclaimer Legal</h4>
+    <p><strong>Este análisis es una estimación basada en datos de mercado y benchmarks de industria. Los resultados reales pueden variar.</strong></p>
+    <p>Bajo ninguna circunstancia este documento constituye un compromiso, ni una propuesta comercial de VTEX, ni de su ecosistema de partners. Los valores presentados son proyecciones basadas en información provista por el usuario y datos históricos de implementaciones similares. Los casos de éxito referenciados corresponden a implementaciones reales pero los resultados específicos dependen de múltiples factores incluyendo ejecución, condiciones de mercado, y adopción organizacional.</p>
+    <p>Para obtener una propuesta comercial formal, se requiere un proceso de discovery y scoping detallado con los equipos técnicos y comerciales de VTEX.</p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <p class="contact"><strong>Sebastián Balbo</strong> | Enterprise Account Executive @ VTEX</p>
+    <p style="color: #6b7280; font-size: 13px; margin-top: 8px;">📧 Contacto para seguimiento | 📅 <a href="${calendlyUrl}" style="color: #e91e63;">Agendar reunión</a></p>
+    <p style="color: #9ca3af; font-size: 11px; margin-top: 16px;">Documento generado automáticamente | ${new Date().toLocaleDateString('es-AR')} | Versión para impresión/PDF</p>
+  </div>
+</body>
+</html>`;
+
+    // Descarga directa del archivo HTML (más confiable que window.open)
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Analisis-ROI-VTEX-${new Date().toISOString().split('T')[0]}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setIsExporting(false);
+    
+    // Mensaje de instrucciones
+    setTimeout(() => {
+      alert('✅ Archivo descargado!\n\nPara convertir a PDF:\n1. Abrí el archivo HTML descargado\n2. Presioná Ctrl+P (o Cmd+P en Mac)\n3. Seleccioná "Guardar como PDF"');
+    }, 100);
+  };
 
   // Calcular scores de comparación
   const currentPlatformScores = platformComparison[currentPlatform];
@@ -669,7 +1284,7 @@ const MigrationROICalculator = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Calculadora de Migración a VTEX</h1>
               <p className="text-gray-600">Análisis completo de ROI, TCO, Cashflow y Comparativa de plataformas</p>
             </div>
-            <img src="/outputs/logo-vtex.png" alt="VTEX" className="h-10 md:h-12 object-contain" />
+            <div className="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold text-xl">VTEX</div>
           </div>
         </div>
 
@@ -803,7 +1418,7 @@ const MigrationROICalculator = () => {
             {Object.entries(featureLabels).map(([key, { name, desc }]) => (
               <button key={key} onClick={() => toggleFeature(key)} className={`p-3 rounded-lg border-2 transition-all text-left ${selectedFeatures[key] ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}`}>
                 <div className="text-sm font-semibold">{name}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{desc}</div>
+                <div className="text-xs text-gray-500 mt-0.5 leading-tight">{desc}</div>
                 <div className="text-xs mt-1 font-medium">{selectedFeatures[key] ? '✓ Activo' : 'Click para activar'}</div>
               </button>
             ))}
@@ -883,65 +1498,263 @@ const MigrationROICalculator = () => {
           </div>
         </div>
 
-        {/* CASHFLOW Y BREAK-EVEN */}
+        {/* CASHFLOW Y BREAK-EVEN - V2 con barras apiladas */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Cashflow Mensual y Break-Even</h2>
           
+          {/* Leyenda de colores */}
+          <div className="flex flex-wrap gap-3 mb-4 p-3 bg-gray-50 rounded-lg text-xs">
+            <span className="font-semibold text-gray-700">Composición:</span>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#10b981'}}></div> Revenue Uplift</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#3b82f6'}}></div> Ahorro Equipo</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#8b5cf6'}}></div> Ahorro TCO</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#f59e0b'}}></div> Feature Gap</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#ef4444'}}></div> Inversión/Costo</div>
+          </div>
+          
           {/* Mini resumen */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
               <p className="text-xs text-gray-600">Inversión Setup</p>
-              <p className="text-xl font-bold text-orange-600">{formatMoney(calculations.inversionSetup)}</p>
+              <p className="text-lg font-bold text-orange-600">{formatMoney(calculations.inversionSetup)}</p>
             </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-xs text-gray-600">Costo VTEX/mes</p>
-              <p className="text-xl font-bold text-blue-600">{formatMoney(calculations.costoOperativoAnual / 12)}</p>
+              <p className="text-lg font-bold text-blue-600">{formatMoney(calculations.costoOperativoAnual / 12)}</p>
             </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
+            <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
               <p className="text-xs text-gray-600">Break-Even</p>
-              <p className="text-xl font-bold text-green-600">Mes {calculations.breakevenMonth || 'N/A'}</p>
+              <p className="text-lg font-bold text-green-600">Mes {calculations.breakevenMonth || 'N/A'}</p>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+              <p className="text-xs text-gray-600">Beneficio Neto Final</p>
+              <p className="text-lg font-bold text-purple-600">{formatMoney(calculations.beneficioIncremental)}</p>
             </div>
           </div>
 
-          {/* Gráfico de barras simplificado */}
-          <div className="relative">
-            <div className="flex items-end gap-1 h-48 border-b border-l border-gray-300 pl-1 pb-1">
-              {calculations.cashflowData.slice(0, Math.min(24, period * 12 + 6)).map((d, i) => {
-                const maxAbs = Math.max(...calculations.cashflowData.map(x => Math.abs(x.cumulative)));
-                const height = Math.abs(d.cumulative) / maxAbs * 100;
-                const isPositive = d.cumulative >= 0;
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
-                    <div 
-                      className={`w-full rounded-t transition-all ${
-                        d.isImplementation ? 'bg-orange-400' : isPositive ? 'bg-green-500' : 'bg-red-400'
-                      }`}
-                      style={{ height: `${Math.max(height, 2)}%` }}
-                    ></div>
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded whitespace-nowrap z-10">
-                      <p>Mes {d.month}</p>
-                      <p>Acumulado: {formatMoney(d.cumulative)}</p>
-                    </div>
-                    {d.month === calculations.breakevenMonth && (
-                      <div className="absolute -top-6 text-xs font-bold text-green-600">⭐</div>
-                    )}
+          {/* Gráfico de barras apiladas */}
+          {(() => {
+            const totalMonths = Math.min(36, period * 12 + 6);
+            const implMonths = calculations.migrationMonths;
+            
+            // Calcular beneficios mensuales post go-live
+            const monthlyUpliftProfit = calculations.totalProfitFromUplift / (period * 12);
+            const monthlyTeamSavings = calculations.teamSavings / 12;
+            const monthlyTCO = calculations.tcoSavings / (period * 12);
+            const monthlyFeatureGap = calculations.featureGapSavings / (period * 12);
+            const monthlyVTEXCost = calculations.costoOperativoAnual / 12;
+            
+            // Generar datos mensuales
+            const monthlyData = [];
+            let cumulative = 0;
+            
+            for (let i = 1; i <= totalMonths; i++) {
+              let data = {
+                month: i,
+                uplift: 0,
+                team: 0,
+                tco: 0,
+                feature: 0,
+                cost: 0,
+                total: 0,
+                cumulative: 0,
+                isImpl: i <= implMonths
+              };
+              
+              if (i <= implMonths) {
+                // Durante implementación
+                if (i === 1) {
+                  data.cost = -calculations.inversionSetup;
+                }
+                data.total = data.cost;
+              } else {
+                // Post go-live
+                data.uplift = monthlyUpliftProfit;
+                data.team = monthlyTeamSavings;
+                data.tco = monthlyTCO;
+                data.feature = monthlyFeatureGap;
+                data.cost = -monthlyVTEXCost;
+                data.total = data.uplift + data.team + data.tco + data.feature + data.cost;
+              }
+              
+              cumulative += data.total;
+              data.cumulative = cumulative;
+              monthlyData.push(data);
+            }
+            
+            // Calcular escalas
+            const maxPositive = Math.max(...monthlyData.map(d => d.uplift + d.team + d.tco + d.feature));
+            const maxNegative = Math.max(...monthlyData.map(d => Math.abs(d.cost)));
+            const maxValue = Math.max(maxPositive, maxNegative, 1);
+            
+            const chartHeight = 220;
+            const barAreaHeight = chartHeight / 2;
+            
+            return (
+              <div className="relative">
+                {/* Contenedor del gráfico */}
+                <div className="flex">
+                  {/* Eje Y */}
+                  <div className="flex flex-col justify-between pr-2 text-xs text-gray-500 w-16" style={{height: chartHeight}}>
+                    <span className="text-right">{formatMoney(maxValue)}</span>
+                    <span className="text-right">{formatMoney(maxValue / 2)}</span>
+                    <span className="text-right font-semibold text-gray-700">$0</span>
+                    <span className="text-right">{formatMoney(-maxValue / 2)}</span>
+                    <span className="text-right">{formatMoney(-maxValue)}</span>
                   </div>
-                );
-              })}
+                  
+                  {/* Área del gráfico */}
+                  <div className="flex-1 relative" style={{height: chartHeight}}>
+                    {/* Línea de cero */}
+                    <div className="absolute left-0 right-0 border-t-2 border-dashed border-gray-400" style={{top: '50%'}}></div>
+                    
+                    {/* Barras */}
+                    <div className="flex h-full">
+                      {monthlyData.map((d, idx) => {
+                        const positiveTotal = d.uplift + d.team + d.tco + d.feature;
+                        const negativeTotal = Math.abs(d.cost);
+                        
+                        // Alturas como porcentaje
+                        const positiveHeight = maxValue > 0 ? (positiveTotal / maxValue) * barAreaHeight : 0;
+                        const negativeHeight = maxValue > 0 ? (negativeTotal / maxValue) * barAreaHeight : 0;
+                        
+                        // Proporciones de cada componente
+                        const upliftH = positiveTotal > 0 ? (d.uplift / positiveTotal) * positiveHeight : 0;
+                        const teamH = positiveTotal > 0 ? (d.team / positiveTotal) * positiveHeight : 0;
+                        const tcoH = positiveTotal > 0 ? (d.tco / positiveTotal) * positiveHeight : 0;
+                        const featureH = positiveTotal > 0 ? (d.feature / positiveTotal) * positiveHeight : 0;
+                        
+                        const isBreakeven = d.month === calculations.breakevenMonth;
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex-1 flex flex-col relative group"
+                            style={{minWidth: '8px', maxWidth: '30px'}}
+                          >
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs p-3 rounded-lg whitespace-nowrap z-30 shadow-xl">
+                              <p className="font-bold border-b border-gray-600 pb-1 mb-2">Mes {d.month}</p>
+                              {d.uplift > 0 && (
+                                <p className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#10b981'}}></span>
+                                  Uplift: {formatMoney(d.uplift)}
+                                </p>
+                              )}
+                              {d.team > 0 && (
+                                <p className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#3b82f6'}}></span>
+                                  Equipo: {formatMoney(d.team)}
+                                </p>
+                              )}
+                              {d.tco > 0 && (
+                                <p className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#8b5cf6'}}></span>
+                                  TCO: {formatMoney(d.tco)}
+                                </p>
+                              )}
+                              {d.feature > 0 && (
+                                <p className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#f59e0b'}}></span>
+                                  Features: {formatMoney(d.feature)}
+                                </p>
+                              )}
+                              {d.cost < 0 && (
+                                <p className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#ef4444'}}></span>
+                                  Costo: {formatMoney(d.cost)}
+                                </p>
+                              )}
+                              <p className="border-t border-gray-600 pt-1 mt-2 font-semibold">
+                                Neto: <span className={d.total >= 0 ? 'text-green-400' : 'text-red-400'}>{formatMoney(d.total)}</span>
+                              </p>
+                              <p>Acumulado: <span className={d.cumulative >= 0 ? 'text-green-400' : 'text-red-400'}>{formatMoney(d.cumulative)}</span></p>
+                            </div>
+                            
+                            {/* Break-even marker */}
+                            {isBreakeven && (
+                              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-green-500 z-20">
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                                  BE
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Mitad superior - barras positivas */}
+                            <div className="flex-1 flex flex-col justify-end px-px">
+                              {positiveTotal > 0 && (
+                                <div className="flex flex-col" style={{height: positiveHeight}}>
+                                  {featureH > 0 && <div style={{height: featureH, backgroundColor: '#f59e0b'}} className="rounded-t-sm"></div>}
+                                  {tcoH > 0 && <div style={{height: tcoH, backgroundColor: '#8b5cf6'}}></div>}
+                                  {teamH > 0 && <div style={{height: teamH, backgroundColor: '#3b82f6'}}></div>}
+                                  {upliftH > 0 && <div style={{height: upliftH, backgroundColor: '#10b981'}} className={featureH === 0 && tcoH === 0 && teamH === 0 ? 'rounded-t-sm' : ''}></div>}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Mitad inferior - barras negativas */}
+                            <div className="flex-1 flex flex-col justify-start px-px">
+                              {negativeTotal > 0 && (
+                                <div 
+                                  style={{height: negativeHeight, backgroundColor: '#ef4444'}}
+                                  className="rounded-b-sm"
+                                ></div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Eje X */}
+                <div className="flex ml-16 mt-2 text-xs text-gray-500">
+                  <div className="flex-1 text-left">Mes 1</div>
+                  <div className="flex-1 text-center text-orange-600 font-medium">← Impl ({implMonths}m)</div>
+                  <div className="flex-1 text-center">Mes {Math.floor(totalMonths / 2)}</div>
+                  <div className="flex-1 text-center text-green-600 font-medium">Operación →</div>
+                  <div className="flex-1 text-right">Mes {totalMonths}</div>
+                </div>
+              </div>
+            );
+          })()}
+          
+          {/* Composición mensual promedio post go-live */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm">Composición Mensual Promedio (Post Go-Live)</h3>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="bg-emerald-100 rounded-lg p-3 text-center border border-emerald-200">
+                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#10b981'}}></div>
+                <p className="text-xs text-gray-600">Revenue Uplift</p>
+                <p className="text-sm font-bold text-emerald-700">{formatMoney(calculations.totalProfitFromUplift / (period * 12))}</p>
+                <p className="text-xs text-emerald-600">{Math.round((calculations.totalProfitFromUplift / calculations.totalBenefits) * 100)}%</p>
+              </div>
+              <div className="bg-blue-100 rounded-lg p-3 text-center border border-blue-200">
+                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#3b82f6'}}></div>
+                <p className="text-xs text-gray-600">Ahorro Equipo</p>
+                <p className="text-sm font-bold text-blue-700">{formatMoney(calculations.teamSavings / 12)}</p>
+                <p className="text-xs text-blue-600">{Math.round((calculations.teamSavings * period / calculations.totalBenefits) * 100)}%</p>
+              </div>
+              <div className="bg-violet-100 rounded-lg p-3 text-center border border-violet-200">
+                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#8b5cf6'}}></div>
+                <p className="text-xs text-gray-600">Ahorro TCO</p>
+                <p className="text-sm font-bold text-violet-700">{formatMoney(calculations.tcoSavings / (period * 12))}</p>
+                <p className="text-xs text-violet-600">{Math.round((calculations.tcoSavings / calculations.totalBenefits) * 100)}%</p>
+              </div>
+              <div className="bg-amber-100 rounded-lg p-3 text-center border border-amber-200">
+                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#f59e0b'}}></div>
+                <p className="text-xs text-gray-600">Feature Gap</p>
+                <p className="text-sm font-bold text-amber-700">{formatMoney(calculations.featureGapSavings / (period * 12))}</p>
+                <p className="text-xs text-amber-600">{Math.round((calculations.featureGapSavings / calculations.totalBenefits) * 100)}%</p>
+              </div>
+              <div className="bg-red-100 rounded-lg p-3 text-center border border-red-200">
+                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#ef4444'}}></div>
+                <p className="text-xs text-gray-600">Costo VTEX</p>
+                <p className="text-sm font-bold text-red-700">-{formatMoney(calculations.costoOperativoAnual / 12)}</p>
+                <p className="text-xs text-red-600">Recurrente</p>
+              </div>
             </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Mes 1</span>
-              <span>Mes {Math.min(24, period * 12 + 6)}</span>
-            </div>
-          </div>
-
-          {/* Leyenda */}
-          <div className="flex gap-4 mt-4 text-xs">
-            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-400 rounded"></div> Implementación</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-400 rounded"></div> Cashflow negativo</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Cashflow positivo</div>
-            <div className="flex items-center gap-1">⭐ Break-even</div>
           </div>
         </div>
 
@@ -1091,28 +1904,16 @@ const MigrationROICalculator = () => {
         <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
           <div className="text-center mb-4">
             <h3 className="text-xl font-bold text-gray-800">¿Listo para transformar tu ecommerce?</h3>
-            <p className="text-gray-600 text-sm">Exportá este análisis para compartirlo con tu equipo directivo</p>
+            <p className="text-gray-600 text-sm">Descargá el análisis completo o agendá una demo con el equipo de VTEX</p>
           </div>
           <div className="flex flex-col md:flex-row justify-center gap-4">
-            <button 
-              onClick={exportToPDF}
+            <button
+              onClick={handleExportPDF}
               disabled={isExporting}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 transition shadow-lg flex items-center justify-center gap-2"
             >
-              {isExporting ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generando PDF...
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  Exportar Análisis (PDF)
-                </>
-              )}
+              <Download className="w-5 h-5" />
+              {isExporting ? 'Generando Análisis...' : 'Exportar Análisis Completo'}
             </button>
             <a 
               href={calendlyUrl}
@@ -1124,16 +1925,26 @@ const MigrationROICalculator = () => {
               Agendar Demo Ejecutiva
             </a>
           </div>
+          
+          {/* Disclaimer */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center leading-relaxed">
+              <strong>Disclaimer:</strong> Este análisis es una estimación basada en datos de mercado y benchmarks de industria. 
+              Los resultados reales pueden variar. Bajo ninguna circunstancia es un compromiso, ni una propuesta comercial VTEX, ni de su ecosistema.
+            </p>
+          </div>
         </div>
 
         {/* Bio & Inspirational Footer */}
         <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 mt-6 text-white">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <img 
-              src="/outputs/sebastian-balbo.png" 
-              alt="Sebastián Balbo" 
-              className="w-24 h-24 rounded-full object-cover border-4 border-white/20 shadow-lg"
+              src="https://iili.io/f4PCq7a.md.png"
+              alt="Sebastián Balbo"
+              className="w-24 h-24 rounded-full object-cover border-2 border-slate-500"
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
             />
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hidden items-center justify-center text-3xl font-bold">SB</div>
             <div className="flex-1 text-center md:text-left">
               <h4 className="text-lg font-bold">Sebastián Balbo</h4>
               <p className="text-sm text-slate-300 mb-2">Enterprise Account Executive @ VTEX</p>
