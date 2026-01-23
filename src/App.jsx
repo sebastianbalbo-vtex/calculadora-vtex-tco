@@ -178,8 +178,6 @@ const criteriaLabels = {
 const MigrationROICalculator = () => {
   const dashboardRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportHtmlContent, setExportHtmlContent] = useState('');
   const [currentPlatform, setCurrentPlatform] = useState('magento');
   const [gmv, setGmv] = useState(10);
   const [industry, setIndustry] = useState('fashion');
@@ -1246,31 +1244,26 @@ const MigrationROICalculator = () => {
 </body>
 </html>`;
 
-    // Mostrar el modal con el contenido
-    setExportHtmlContent(htmlContent);
-    setShowExportModal(true);
-    setIsExporting(false);
-  };
-
-  // Función para imprimir desde el modal
-  const handlePrintFromModal = () => {
-    const iframe = document.getElementById('export-iframe');
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.print();
+    // Abrir directamente en nueva pestaña
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+      setIsExporting(false);
+    } else {
+      // Fallback: si el popup está bloqueado, descargar el archivo
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Analisis-ROI-VTEX-${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setIsExporting(false);
+      alert('El popup fue bloqueado. Se descargó el archivo HTML. Abrilo y usá Ctrl+P para guardar como PDF.');
     }
-  };
-
-  // Función para descargar HTML desde el modal
-  const handleDownloadHtml = () => {
-    const blob = new Blob([exportHtmlContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Analisis-ROI-VTEX-${new Date().toISOString().split('T')[0]}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   // Calcular scores de comparación
@@ -1602,11 +1595,11 @@ const MigrationROICalculator = () => {
                 </div>
                 
                 {/* Leyenda simple */}
-                <div className="flex gap-4 mt-3 text-xs">
-                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-400 rounded"></div> Implementación</div>
-                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-400 rounded"></div> Negativo</div>
-                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Positivo</div>
-                  <div className="flex items-center gap-1"><span className="bg-green-100 text-green-700 px-1 rounded font-bold">BE</span> Break-even</div>
+                <div className="flex flex-wrap gap-4 mt-3 text-sm">
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-400 rounded"></div><span className="text-gray-700 font-medium">Implementación</span></div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-400 rounded"></div><span className="text-gray-700 font-medium">Negativo</span></div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-500 rounded"></div><span className="text-gray-700 font-medium">Positivo</span></div>
+                  <div className="flex items-center gap-2"><span className="bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold text-xs">BE</span><span className="text-gray-700 font-medium">Break-even</span></div>
                 </div>
               </div>
             );
@@ -1663,20 +1656,20 @@ const MigrationROICalculator = () => {
                   </div>
                   
                   {/* Barras horizontales */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {composition.map((item, i) => (
                       <div key={i}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded" style={{backgroundColor: item.color}}></div>
-                            {item.name}
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="flex items-center gap-2 font-medium text-gray-800">
+                            <div className="w-4 h-4 rounded flex-shrink-0" style={{backgroundColor: item.color}}></div>
+                            <span>{item.name}</span>
                           </span>
-                          <span className="font-bold">{formatMoney(item.value)} ({item.pct}%)</span>
+                          <span className="font-bold text-gray-800">{formatMoney(item.value)} <span className="text-gray-500">({item.pct}%)</span></span>
                         </div>
-                        <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-5 bg-gray-200 rounded-full overflow-hidden">
                           <div 
                             className="h-full rounded-full transition-all"
-                            style={{width: `${item.pct}%`, backgroundColor: item.color}}
+                            style={{width: `${Math.max(item.pct, 2)}%`, backgroundColor: item.color}}
                           ></div>
                         </div>
                       </div>
@@ -1904,64 +1897,6 @@ const MigrationROICalculator = () => {
           Este análisis es una estimación basada en datos de mercado y benchmarks de industria. Los resultados reales pueden variar.
         </p>
       </div>
-
-      {/* MODAL DE EXPORTACIÓN */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
-            {/* Header del modal */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-t-xl">
-              <div>
-                <h3 className="text-xl font-bold">📊 Análisis Ejecutivo ROI - Migración a VTEX</h3>
-                <p className="text-sm opacity-90">Vista previa del documento • Podés imprimir o descargar</p>
-              </div>
-              <button 
-                onClick={() => setShowExportModal(false)}
-                className="p-2 hover:bg-white/20 rounded-lg transition"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Contenido - iframe */}
-            <div className="flex-1 overflow-hidden p-2 bg-gray-100">
-              <iframe
-                id="export-iframe"
-                srcDoc={exportHtmlContent}
-                className="w-full h-full bg-white rounded-lg shadow-inner"
-                title="Análisis ROI Preview"
-              />
-            </div>
-            
-            {/* Footer con acciones */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex flex-col sm:flex-row gap-3 justify-between items-center">
-              <p className="text-sm text-gray-500">
-                💡 <strong>Tip:</strong> Usá "Imprimir" y seleccioná "Guardar como PDF" para obtener el documento
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDownloadHtml}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2 font-medium"
-                >
-                  <Download className="w-4 h-4" />
-                  Descargar HTML
-                </button>
-                <button
-                  onClick={handlePrintFromModal}
-                  className="px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg hover:from-pink-700 hover:to-purple-700 transition flex items-center gap-2 font-bold shadow-lg"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Imprimir / Guardar PDF
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
