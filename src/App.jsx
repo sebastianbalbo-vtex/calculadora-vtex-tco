@@ -178,6 +178,8 @@ const criteriaLabels = {
 const MigrationROICalculator = () => {
   const dashboardRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportHtmlContent, setExportHtmlContent] = useState('');
   const [currentPlatform, setCurrentPlatform] = useState('magento');
   const [gmv, setGmv] = useState(10);
   const [industry, setIndustry] = useState('fashion');
@@ -1244,8 +1246,23 @@ const MigrationROICalculator = () => {
 </body>
 </html>`;
 
-    // Descarga directa del archivo HTML (más confiable que window.open)
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    // Mostrar el modal con el contenido
+    setExportHtmlContent(htmlContent);
+    setShowExportModal(true);
+    setIsExporting(false);
+  };
+
+  // Función para imprimir desde el modal
+  const handlePrintFromModal = () => {
+    const iframe = document.getElementById('export-iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.print();
+    }
+  };
+
+  // Función para descargar HTML desde el modal
+  const handleDownloadHtml = () => {
+    const blob = new Blob([exportHtmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1254,12 +1271,6 @@ const MigrationROICalculator = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setIsExporting(false);
-    
-    // Mensaje de instrucciones
-    setTimeout(() => {
-      alert('✅ Archivo descargado!\n\nPara convertir a PDF:\n1. Abrí el archivo HTML descargado\n2. Presioná Ctrl+P (o Cmd+P en Mac)\n3. Seleccioná "Guardar como PDF"');
-    }, 100);
   };
 
   // Calcular scores de comparación
@@ -1498,21 +1509,11 @@ const MigrationROICalculator = () => {
           </div>
         </div>
 
-        {/* CASHFLOW Y BREAK-EVEN - V2 con barras apiladas */}
+        {/* CASHFLOW Y BREAK-EVEN - Opción A: Original + Panel de Composición */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Cashflow Mensual y Break-Even</h2>
           
-          {/* Leyenda de colores */}
-          <div className="flex flex-wrap gap-3 mb-4 p-3 bg-gray-50 rounded-lg text-xs">
-            <span className="font-semibold text-gray-700">Composición:</span>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#10b981'}}></div> Revenue Uplift</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#3b82f6'}}></div> Ahorro Equipo</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#8b5cf6'}}></div> Ahorro TCO</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#f59e0b'}}></div> Feature Gap</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{backgroundColor: '#ef4444'}}></div> Inversión/Costo</div>
-          </div>
-          
-          {/* Mini resumen */}
+          {/* KPIs */}
           <div className="grid grid-cols-4 gap-3 mb-6">
             <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
               <p className="text-xs text-gray-600">Inversión Setup</p>
@@ -1527,234 +1528,163 @@ const MigrationROICalculator = () => {
               <p className="text-lg font-bold text-green-600">Mes {calculations.breakevenMonth || 'N/A'}</p>
             </div>
             <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-              <p className="text-xs text-gray-600">Beneficio Neto Final</p>
+              <p className="text-xs text-gray-600">Beneficio Neto</p>
               <p className="text-lg font-bold text-purple-600">{formatMoney(calculations.beneficioIncremental)}</p>
             </div>
           </div>
 
-          {/* Gráfico de barras apiladas */}
+          {/* GRÁFICO ORIGINAL - Barras simples de cashflow acumulado */}
           {(() => {
-            const totalMonths = Math.min(36, period * 12 + 6);
-            const implMonths = calculations.migrationMonths;
-            
-            // Calcular beneficios mensuales post go-live
-            const monthlyUpliftProfit = calculations.totalProfitFromUplift / (period * 12);
-            const monthlyTeamSavings = calculations.teamSavings / 12;
-            const monthlyTCO = calculations.tcoSavings / (period * 12);
-            const monthlyFeatureGap = calculations.featureGapSavings / (period * 12);
-            const monthlyVTEXCost = calculations.costoOperativoAnual / 12;
-            
-            // Generar datos mensuales
-            const monthlyData = [];
-            let cumulative = 0;
-            
-            for (let i = 1; i <= totalMonths; i++) {
-              let data = {
-                month: i,
-                uplift: 0,
-                team: 0,
-                tco: 0,
-                feature: 0,
-                cost: 0,
-                total: 0,
-                cumulative: 0,
-                isImpl: i <= implMonths
-              };
-              
-              if (i <= implMonths) {
-                // Durante implementación
-                if (i === 1) {
-                  data.cost = -calculations.inversionSetup;
-                }
-                data.total = data.cost;
-              } else {
-                // Post go-live
-                data.uplift = monthlyUpliftProfit;
-                data.team = monthlyTeamSavings;
-                data.tco = monthlyTCO;
-                data.feature = monthlyFeatureGap;
-                data.cost = -monthlyVTEXCost;
-                data.total = data.uplift + data.team + data.tco + data.feature + data.cost;
-              }
-              
-              cumulative += data.total;
-              data.cumulative = cumulative;
-              monthlyData.push(data);
-            }
-            
-            // Calcular escalas
-            const maxPositive = Math.max(...monthlyData.map(d => d.uplift + d.team + d.tco + d.feature));
-            const maxNegative = Math.max(...monthlyData.map(d => Math.abs(d.cost)));
-            const maxValue = Math.max(maxPositive, maxNegative, 1);
-            
-            const chartHeight = 220;
-            const barAreaHeight = chartHeight / 2;
+            const data = calculations.cashflowData.slice(0, Math.min(36, period * 12 + 6));
+            const maxVal = Math.max(...data.map(d => d.cumulative));
+            const minVal = Math.min(...data.map(d => d.cumulative));
+            const maxAbs = Math.max(Math.abs(maxVal), Math.abs(minVal), 1);
             
             return (
-              <div className="relative">
-                {/* Contenedor del gráfico */}
-                <div className="flex">
-                  {/* Eje Y */}
-                  <div className="flex flex-col justify-between pr-2 text-xs text-gray-500 w-16" style={{height: chartHeight}}>
-                    <span className="text-right">{formatMoney(maxValue)}</span>
-                    <span className="text-right">{formatMoney(maxValue / 2)}</span>
-                    <span className="text-right font-semibold text-gray-700">$0</span>
-                    <span className="text-right">{formatMoney(-maxValue / 2)}</span>
-                    <span className="text-right">{formatMoney(-maxValue)}</span>
-                  </div>
-                  
-                  {/* Área del gráfico */}
-                  <div className="flex-1 relative" style={{height: chartHeight}}>
-                    {/* Línea de cero */}
-                    <div className="absolute left-0 right-0 border-t-2 border-dashed border-gray-400" style={{top: '50%'}}></div>
-                    
-                    {/* Barras */}
-                    <div className="flex h-full">
-                      {monthlyData.map((d, idx) => {
-                        const positiveTotal = d.uplift + d.team + d.tco + d.feature;
-                        const negativeTotal = Math.abs(d.cost);
-                        
-                        // Alturas como porcentaje
-                        const positiveHeight = maxValue > 0 ? (positiveTotal / maxValue) * barAreaHeight : 0;
-                        const negativeHeight = maxValue > 0 ? (negativeTotal / maxValue) * barAreaHeight : 0;
-                        
-                        // Proporciones de cada componente
-                        const upliftH = positiveTotal > 0 ? (d.uplift / positiveTotal) * positiveHeight : 0;
-                        const teamH = positiveTotal > 0 ? (d.team / positiveTotal) * positiveHeight : 0;
-                        const tcoH = positiveTotal > 0 ? (d.tco / positiveTotal) * positiveHeight : 0;
-                        const featureH = positiveTotal > 0 ? (d.feature / positiveTotal) * positiveHeight : 0;
-                        
-                        const isBreakeven = d.month === calculations.breakevenMonth;
-                        
-                        return (
-                          <div 
-                            key={idx} 
-                            className="flex-1 flex flex-col relative group"
-                            style={{minWidth: '8px', maxWidth: '30px'}}
-                          >
-                            {/* Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs p-3 rounded-lg whitespace-nowrap z-30 shadow-xl">
-                              <p className="font-bold border-b border-gray-600 pb-1 mb-2">Mes {d.month}</p>
-                              {d.uplift > 0 && (
-                                <p className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#10b981'}}></span>
-                                  Uplift: {formatMoney(d.uplift)}
-                                </p>
-                              )}
-                              {d.team > 0 && (
-                                <p className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#3b82f6'}}></span>
-                                  Equipo: {formatMoney(d.team)}
-                                </p>
-                              )}
-                              {d.tco > 0 && (
-                                <p className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#8b5cf6'}}></span>
-                                  TCO: {formatMoney(d.tco)}
-                                </p>
-                              )}
-                              {d.feature > 0 && (
-                                <p className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#f59e0b'}}></span>
-                                  Features: {formatMoney(d.feature)}
-                                </p>
-                              )}
-                              {d.cost < 0 && (
-                                <p className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded" style={{backgroundColor: '#ef4444'}}></span>
-                                  Costo: {formatMoney(d.cost)}
-                                </p>
-                              )}
-                              <p className="border-t border-gray-600 pt-1 mt-2 font-semibold">
-                                Neto: <span className={d.total >= 0 ? 'text-green-400' : 'text-red-400'}>{formatMoney(d.total)}</span>
-                              </p>
-                              <p>Acumulado: <span className={d.cumulative >= 0 ? 'text-green-400' : 'text-red-400'}>{formatMoney(d.cumulative)}</span></p>
-                            </div>
-                            
-                            {/* Break-even marker */}
-                            {isBreakeven && (
-                              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-green-500 z-20">
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
-                                  BE
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Mitad superior - barras positivas */}
-                            <div className="flex-1 flex flex-col justify-end px-px">
-                              {positiveTotal > 0 && (
-                                <div className="flex flex-col" style={{height: positiveHeight}}>
-                                  {featureH > 0 && <div style={{height: featureH, backgroundColor: '#f59e0b'}} className="rounded-t-sm"></div>}
-                                  {tcoH > 0 && <div style={{height: tcoH, backgroundColor: '#8b5cf6'}}></div>}
-                                  {teamH > 0 && <div style={{height: teamH, backgroundColor: '#3b82f6'}}></div>}
-                                  {upliftH > 0 && <div style={{height: upliftH, backgroundColor: '#10b981'}} className={featureH === 0 && tcoH === 0 && teamH === 0 ? 'rounded-t-sm' : ''}></div>}
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Mitad inferior - barras negativas */}
-                            <div className="flex-1 flex flex-col justify-start px-px">
-                              {negativeTotal > 0 && (
-                                <div 
-                                  style={{height: negativeHeight, backgroundColor: '#ef4444'}}
-                                  className="rounded-b-sm"
-                                ></div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+              <div className="mb-6">
+                <div className="flex items-end h-48 gap-1 border-b border-gray-300 relative">
+                  {/* Línea de cero */}
+                  {minVal < 0 && maxVal > 0 && (
+                    <div 
+                      className="absolute left-0 right-0 border-t-2 border-dashed border-gray-400 z-10" 
+                      style={{top: `${(maxVal / (maxVal - minVal)) * 100}%`}}
+                    >
+                      <span className="absolute -left-10 -top-2 text-xs text-gray-500">$0</span>
                     </div>
-                  </div>
+                  )}
+                  
+                  {data.map((d, i) => {
+                    const isPositive = d.cumulative >= 0;
+                    const height = (Math.abs(d.cumulative) / maxAbs) * 50;
+                    const isBreakeven = d.month === calculations.breakevenMonth;
+                    const topPosition = minVal < 0 && maxVal > 0
+                      ? (isPositive ? (maxVal / (maxVal - minVal)) * 100 - height : (maxVal / (maxVal - minVal)) * 100)
+                      : (isPositive ? 100 - height : 50);
+                    
+                    return (
+                      <div key={i} className="flex-1 flex flex-col justify-center h-full relative group">
+                        <div 
+                          className={`absolute left-0 right-0 mx-px rounded-sm transition-all ${
+                            d.isImplementation ? 'bg-orange-400 hover:bg-orange-500' :
+                            isPositive ? 'bg-green-500 hover:bg-green-600' : 'bg-red-400 hover:bg-red-500'
+                          }`}
+                          style={{
+                            height: `${Math.max(height, 2)}%`,
+                            top: `${topPosition}%`
+                          }}
+                        />
+                        
+                        {/* Break-even marker */}
+                        {isBreakeven && (
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10">
+                            <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">BE</span>
+                          </div>
+                        )}
+                        
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded z-20 whitespace-nowrap shadow-lg">
+                          <p className="font-bold">Mes {d.month}</p>
+                          <p>Acumulado: {formatMoney(d.cumulative)}</p>
+                          <p className="text-gray-300">Flujo mes: {formatMoney(d.net)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 {/* Eje X */}
-                <div className="flex ml-16 mt-2 text-xs text-gray-500">
-                  <div className="flex-1 text-left">Mes 1</div>
-                  <div className="flex-1 text-center text-orange-600 font-medium">← Impl ({implMonths}m)</div>
-                  <div className="flex-1 text-center">Mes {Math.floor(totalMonths / 2)}</div>
-                  <div className="flex-1 text-center text-green-600 font-medium">Operación →</div>
-                  <div className="flex-1 text-right">Mes {totalMonths}</div>
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>Mes 1</span>
+                  <span className="text-orange-600">← Implementación ({calculations.migrationMonths}m)</span>
+                  <span>Mes {Math.floor(data.length / 2)}</span>
+                  <span className="text-green-600">Operación →</span>
+                  <span>Mes {data.length}</span>
+                </div>
+                
+                {/* Leyenda simple */}
+                <div className="flex gap-4 mt-3 text-xs">
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-400 rounded"></div> Implementación</div>
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-400 rounded"></div> Negativo</div>
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Positivo</div>
+                  <div className="flex items-center gap-1"><span className="bg-green-100 text-green-700 px-1 rounded font-bold">BE</span> Break-even</div>
                 </div>
               </div>
             );
           })()}
-          
-          {/* Composición mensual promedio post go-live */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-700 mb-3 text-sm">Composición Mensual Promedio (Post Go-Live)</h3>
-            <div className="grid grid-cols-5 gap-2">
-              <div className="bg-emerald-100 rounded-lg p-3 text-center border border-emerald-200">
-                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#10b981'}}></div>
-                <p className="text-xs text-gray-600">Revenue Uplift</p>
-                <p className="text-sm font-bold text-emerald-700">{formatMoney(calculations.totalProfitFromUplift / (period * 12))}</p>
-                <p className="text-xs text-emerald-600">{Math.round((calculations.totalProfitFromUplift / calculations.totalBenefits) * 100)}%</p>
-              </div>
-              <div className="bg-blue-100 rounded-lg p-3 text-center border border-blue-200">
-                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#3b82f6'}}></div>
-                <p className="text-xs text-gray-600">Ahorro Equipo</p>
-                <p className="text-sm font-bold text-blue-700">{formatMoney(calculations.teamSavings / 12)}</p>
-                <p className="text-xs text-blue-600">{Math.round((calculations.teamSavings * period / calculations.totalBenefits) * 100)}%</p>
-              </div>
-              <div className="bg-violet-100 rounded-lg p-3 text-center border border-violet-200">
-                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#8b5cf6'}}></div>
-                <p className="text-xs text-gray-600">Ahorro TCO</p>
-                <p className="text-sm font-bold text-violet-700">{formatMoney(calculations.tcoSavings / (period * 12))}</p>
-                <p className="text-xs text-violet-600">{Math.round((calculations.tcoSavings / calculations.totalBenefits) * 100)}%</p>
-              </div>
-              <div className="bg-amber-100 rounded-lg p-3 text-center border border-amber-200">
-                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#f59e0b'}}></div>
-                <p className="text-xs text-gray-600">Feature Gap</p>
-                <p className="text-sm font-bold text-amber-700">{formatMoney(calculations.featureGapSavings / (period * 12))}</p>
-                <p className="text-xs text-amber-600">{Math.round((calculations.featureGapSavings / calculations.totalBenefits) * 100)}%</p>
-              </div>
-              <div className="bg-red-100 rounded-lg p-3 text-center border border-red-200">
-                <div className="w-3 h-3 rounded mx-auto mb-1" style={{backgroundColor: '#ef4444'}}></div>
-                <p className="text-xs text-gray-600">Costo VTEX</p>
-                <p className="text-sm font-bold text-red-700">-{formatMoney(calculations.costoOperativoAnual / 12)}</p>
-                <p className="text-xs text-red-600">Recurrente</p>
-              </div>
-            </div>
+
+          {/* PANEL DE COMPOSICIÓN DE BENEFICIOS */}
+          <div className="border-t-2 border-gray-200 pt-6">
+            <h3 className="font-bold text-gray-800 mb-4">📊 Composición de Beneficios ({period} {period === 1 ? 'año' : 'años'})</h3>
+            
+            {(() => {
+              const composition = [
+                { name: 'Revenue Uplift', value: calculations.totalProfitFromUplift, color: '#10b981' },
+                { name: 'Ahorro Equipo', value: calculations.teamSavings * period, color: '#3b82f6' },
+                { name: 'Ahorro TCO', value: calculations.tcoSavings, color: '#8b5cf6' },
+                { name: 'Feature Gap', value: calculations.featureGapSavings, color: '#f59e0b' },
+              ].map(item => ({
+                ...item,
+                pct: Math.round((item.value / calculations.totalBenefits) * 100)
+              }));
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Gráfico de dona */}
+                  <div className="flex items-center justify-center">
+                    <div className="relative w-48 h-48">
+                      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                        {(() => {
+                          let offset = 0;
+                          return composition.map((item, i) => {
+                            const circumference = 2 * Math.PI * 35;
+                            const dash = (item.pct / 100) * circumference;
+                            const gap = circumference - dash;
+                            const elem = (
+                              <circle
+                                key={i}
+                                cx="50" cy="50" r="35"
+                                fill="none"
+                                stroke={item.color}
+                                strokeWidth="20"
+                                strokeDasharray={`${dash} ${gap}`}
+                                strokeDashoffset={-offset}
+                              />
+                            );
+                            offset += dash;
+                            return elem;
+                          });
+                        })()}
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <p className="text-2xl font-bold text-gray-800">{formatMoney(calculations.totalBenefits)}</p>
+                        <p className="text-xs text-gray-500">Total Beneficios</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Barras horizontales */}
+                  <div className="space-y-3">
+                    {composition.map((item, i) => (
+                      <div key={i}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded" style={{backgroundColor: item.color}}></div>
+                            {item.name}
+                          </span>
+                          <span className="font-bold">{formatMoney(item.value)} ({item.pct}%)</span>
+                        </div>
+                        <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all"
+                            style={{width: `${item.pct}%`, backgroundColor: item.color}}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -1974,6 +1904,64 @@ const MigrationROICalculator = () => {
           Este análisis es una estimación basada en datos de mercado y benchmarks de industria. Los resultados reales pueden variar.
         </p>
       </div>
+
+      {/* MODAL DE EXPORTACIÓN */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-t-xl">
+              <div>
+                <h3 className="text-xl font-bold">📊 Análisis Ejecutivo ROI - Migración a VTEX</h3>
+                <p className="text-sm opacity-90">Vista previa del documento • Podés imprimir o descargar</p>
+              </div>
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Contenido - iframe */}
+            <div className="flex-1 overflow-hidden p-2 bg-gray-100">
+              <iframe
+                id="export-iframe"
+                srcDoc={exportHtmlContent}
+                className="w-full h-full bg-white rounded-lg shadow-inner"
+                title="Análisis ROI Preview"
+              />
+            </div>
+            
+            {/* Footer con acciones */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex flex-col sm:flex-row gap-3 justify-between items-center">
+              <p className="text-sm text-gray-500">
+                💡 <strong>Tip:</strong> Usá "Imprimir" y seleccioná "Guardar como PDF" para obtener el documento
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownloadHtml}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2 font-medium"
+                >
+                  <Download className="w-4 h-4" />
+                  Descargar HTML
+                </button>
+                <button
+                  onClick={handlePrintFromModal}
+                  className="px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg hover:from-pink-700 hover:to-purple-700 transition flex items-center gap-2 font-bold shadow-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimir / Guardar PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
